@@ -1,0 +1,247 @@
+<div class="page">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-header__left">
+      <h1 class="page-title">Visual Inspection</h1>
+      <span class="page-subtitle">Camera monitoring &amp; defect capture</span>
+    </div>
+    <div class="page-header__right">
+      <button mat-stroked-button (click)="loadCameras()" [disabled]="loadingCameras" class="refresh-btn">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Capture settings — read-only summary -->
+  <div class="config-summary">
+    <div class="config-summary__left">
+      <mat-icon class="config-summary__icon">tune</mat-icon>
+      <div class="config-summary__params">
+        <div class="config-param">
+          <span class="config-param__label">Buffer</span>
+          <span class="config-param__value">{{ cfg.config.ringBufferSize }} frames</span>
+        </div>
+        <div class="config-param">
+          <span class="config-param__label">Default offset</span>
+          <span class="config-param__value">{{ cfg.config.offsetFrames }} frames</span>
+        </div>
+        <div class="config-param">
+          <span class="config-param__label">Each side (±)</span>
+          <span class="config-param__value">{{ cfg.config.frameCount }} frames</span>
+        </div>
+        @if (cfg.config.machineState) {
+          <div class="config-param">
+            <span class="config-param__label">Machine state</span>
+            <span class="config-param__value">{{ cfg.config.machineState }}</span>
+          </div>
+        }
+      </div>
+    </div>
+    <a mat-stroked-button routerLink="/configuration" class="config-summary__link">
+      <mat-icon>settings</mat-icon>
+      Configure
+    </a>
+  </div>
+
+  <!-- Global error -->
+  @if (globalError) {
+    <div class="global-error">
+      <mat-icon>error_outline</mat-icon>
+      {{ globalError }}
+    </div>
+  }
+
+  <!-- Loading -->
+  @if (loadingCameras) {
+    <div class="state-center">
+      <mat-spinner diameter="48" />
+      <p>Detecting cameras...</p>
+    </div>
+  }
+
+  <!-- No cameras -->
+  @if (!loadingCameras && cameras.length === 0 && !globalError) {
+    <div class="state-center">
+      <mat-icon class="state-icon">no_photography</mat-icon>
+      <h3>No cameras found</h3>
+      <p>Check the backend connection and connected cameras.</p>
+      <button mat-raised-button color="primary" (click)="loadCameras()">Retry</button>
+    </div>
+  }
+
+  <!-- Single camera panel — only first camera is shown -->
+  @if (!loadingCameras && cameras.length > 0) {
+    @let state = cameras[0];
+
+    <div class="camera-panel"
+      [class.camera-panel--recording]="state.isRecording"
+      [class.camera-panel--stopped]="state.isRecording && !state.fabricIsMoving">
+
+      <!-- Panel header -->
+      <div class="panel-header">
+        <div class="cam-avatar" [class.cam-avatar--recording]="state.isRecording">
+          <mat-icon>{{ state.isRecording ? 'fiber_manual_record' : 'videocam' }}</mat-icon>
+        </div>
+        <div class="panel-header__info">
+          <span class="panel-header__name">{{ state.camera.name }}</span>
+          <span class="panel-header__model">{{ state.camera.modelName }}</span>
+        </div>
+        @if (state.isRecording && !state.isPaused) {
+          <span class="rec-badge">
+            <span class="rec-dot"></span> REC
+          </span>
+        }
+        @if (state.isPaused) {
+          <span class="rec-badge rec-badge--paused">
+            <mat-icon>pause</mat-icon> PAUSED
+          </span>
+        }
+      </div>
+
+      <mat-divider />
+
+      <!-- Panel body: two columns -->
+      <div class="panel-body">
+
+        <!-- Left: camera details -->
+        <div class="panel-section panel-section--details">
+          <span class="section-label">Camera info</span>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">ID</span>
+              <span class="detail-value">{{ state.camera.id }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Serial</span>
+              <span class="detail-value">{{ state.camera.serial }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Interface</span>
+              <span class="detail-value">{{ state.camera.interfaceName }}</span>
+            </div>
+            @if (state.session) {
+              <div class="detail-item">
+                <span class="detail-label">Total frames</span>
+                <span class="detail-value detail-value--accent">{{ state.session.totalFrames }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Right: status + buffer -->
+        <div class="panel-section panel-section--status">
+          <span class="section-label">Session status</span>
+
+          @if (!state.isRecording) {
+            <div class="idle-state">
+              <mat-icon>videocam_off</mat-icon>
+              <span>No active session — press Start to begin recording.</span>
+            </div>
+          }
+
+          @if (state.isRecording) {
+            <!-- Fabric state indicator -->
+            <div class="fabric-state"
+              [class.fabric-state--moving]="state.fabricIsMoving"
+              [class.fabric-state--stopped]="!state.fabricIsMoving">
+              <mat-icon>{{ state.fabricIsMoving ? 'directions_run' : 'pan_tool' }}</mat-icon>
+              <div class="fabric-state__text">
+                <span class="fabric-state__main">{{ state.fabricIsMoving ? 'Fabric moving' : 'Fabric stopped' }}</span>
+                <span class="fabric-state__sub">{{ state.fabricIsMoving ? 'Buffer is filling' : 'Buffer frozen — ready to capture' }}</span>
+              </div>
+            </div>
+
+            <!-- Buffer -->
+            @if (state.session) {
+              <div class="buffer-section">
+                <div class="buffer-label">
+                  <span>Frame buffer</span>
+                  <span class="buffer-count">{{ state.session.bufferFrameCount }} / {{ state.session.ringBufferSize }} frames</span>
+                </div>
+                <mat-progress-bar
+                  mode="determinate"
+                  [value]="bufferPercent(state)"
+                  [color]="state.fabricIsMoving ? 'primary' : 'warn'">
+                </mat-progress-bar>
+              </div>
+            }
+
+            <!-- Last snapshot -->
+            @if (state.lastSnapshot) {
+              <div class="last-snapshot">
+                <mat-icon>photo_camera</mat-icon>
+                <div class="snapshot-info">
+                  <span class="snapshot-file">{{ state.lastSnapshot.fileName }}</span>
+                  <span class="snapshot-time">{{ formatTimestamp(state.lastSnapshot.captureTimestamp) }}</span>
+                  @if (state.lastSnapshot.defectType) {
+                    <span class="snapshot-defect-type">{{ state.lastSnapshot.defectType }}</span>
+                  }
+                  @if (state.lastSnapshot.rulerPosition != null) {
+                    <span class="snapshot-ruler">Ruler #{{ state.lastSnapshot.rulerPosition }} · {{ state.lastSnapshot.calculatedOffsetFrames }}f back</span>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+
+      </div><!-- /.panel-body -->
+
+      <mat-divider />
+
+      <!-- Actions row -->
+      <div class="panel-actions">
+
+        <button mat-stroked-button color="primary" class="action-btn"
+          (click)="startRecording(state)"
+          [disabled]="state.isRecording || state.loading"
+          matTooltip="Start recording">
+          @if (state.loading && !state.isRecording) {
+            <mat-spinner diameter="18" />
+          } @else {
+            <mat-icon>play_arrow</mat-icon>
+          }
+          Start
+        </button>
+
+        <button mat-stroked-button color="warn" class="action-btn"
+          (click)="stopRecording(state)"
+          [disabled]="!state.isRecording || state.loading"
+          matTooltip="Stop recording">
+          <mat-icon>stop</mat-icon>
+          Stop
+        </button>
+
+        @if (state.isRecording) {
+          <div class="action-divider"></div>
+
+          <button mat-stroked-button class="action-btn"
+            [color]="state.fabricIsMoving ? 'warn' : 'primary'"
+            (click)="toggleFabricState(state)"
+            [disabled]="state.loading"
+            [matTooltip]="state.fabricIsMoving ? 'Stop fabric — freezes buffer' : 'Move fabric — resumes buffer'">
+            <mat-icon>{{ state.fabricIsMoving ? 'pan_tool' : 'directions_run' }}</mat-icon>
+            {{ state.fabricIsMoving ? 'Stop fabric' : 'Move fabric' }}
+          </button>
+
+          <button mat-raised-button color="accent" class="action-btn action-btn--capture"
+            (click)="captureDefect(state)"
+            [disabled]="state.loading || state.fabricIsMoving"
+            [matTooltip]="state.fabricIsMoving ? 'Stop the fabric first to capture a defect' : 'Capture defect — opens selection dialog'">
+            @if (state.loading && !state.fabricIsMoving) {
+              <mat-spinner diameter="18" />
+            } @else {
+              <mat-icon>search</mat-icon>
+            }
+            Capture (–{{ cfg.config.offsetFrames }}f)
+          </button>
+        }
+
+      </div>
+
+    </div>
+  }
+
+</div>

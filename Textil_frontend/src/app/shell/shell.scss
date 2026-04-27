@@ -1,0 +1,196 @@
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+// ---- Mobile top bar (hidden on desktop) ----
+.topbar {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  background: #1a1d2e;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  z-index: 200;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.topbar-hamburger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  color: white;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(255,255,255,0.1); }
+
+  mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+// ---- Overlay ----
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 250;
+}
+
+// ---- Sidebar ----
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: #1a1d2e;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.25s ease;
+  z-index: 300;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  background: #e53935;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  mat-icon {
+    color: white;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+  }
+}
+
+.brand-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.08em;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+  }
+
+  &:hover {
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.85);
+  }
+
+  &--active {
+    background: rgba(255,255,255,0.1);
+    color: white;
+  }
+}
+
+.sidebar-bottom {
+  padding: 10px 10px 20px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+
+  .nav-item { cursor: default; }
+}
+
+// ---- Main ----
+.main-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  background: #f4f6f9;
+}
+
+// ---- Responsive ----
+
+// Tablet (≤ 1024px): sidebar se puede ocultar con hamburger
+@media (max-width: 1024px) {
+  .topbar {
+    display: flex;
+  }
+
+  .main-wrapper {
+    padding-top: 52px;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    transform: translateX(-100%);
+
+    &--open {
+      transform: translateX(0);
+    }
+  }
+
+  .sidebar-overlay {
+    display: block;
+  }
+}
+
+// Mobile (≤ 480px): reducir padding del contenido
+@media (max-width: 480px) {
+  .topbar {
+    height: 48px;
+  }
+
+  .main-wrapper {
+    padding-top: 48px;
+  }
+}

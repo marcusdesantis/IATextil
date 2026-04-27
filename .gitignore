@@ -1,0 +1,25 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.log
+*.tmp
+TestResults/
+
+# ASP.NET
+wwwroot/captures/
+appsettings.Development.json
+appsettings.*.local.json
+
+# Angular
+node_modules/
+dist/
+.angular/
+*.js.map
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

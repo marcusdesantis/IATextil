@@ -1,0 +1,52 @@
+<div class="app-layout">
+
+  <!-- Mobile top bar -->
+  <header class="topbar">
+    <button class="topbar-hamburger" (click)="toggleSidebar()">
+      <mat-icon>{{ sidebarOpen ? 'close' : 'menu' }}</mat-icon>
+    </button>
+    <div class="topbar-brand">
+      <div class="brand-logo">
+        <mat-icon>visibility</mat-icon>
+      </div>
+      <span class="brand-name">TEXTIL</span>
+    </div>
+  </header>
+
+  <!-- Overlay (mobile) -->
+  @if (sidebarOpen) {
+    <div class="sidebar-overlay" (click)="closeSidebar()"></div>
+  }
+
+  <aside class="sidebar" [class.sidebar--open]="sidebarOpen">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <mat-icon>visibility</mat-icon>
+      </div>
+      <span class="brand-name">TEXTIL</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-item" routerLink="/inspection" routerLinkActive="nav-item--active" (click)="closeSidebar()">
+        <mat-icon>camera_alt</mat-icon>
+        <span>Inspection</span>
+      </a>
+      <a class="nav-item" routerLink="/configuration" routerLinkActive="nav-item--active" (click)="closeSidebar()">
+        <mat-icon>settings</mat-icon>
+        <span>Configuration</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="nav-item">
+        <mat-icon>account_circle</mat-icon>
+        <span>Profile</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-wrapper">
+    <router-outlet />
+  </div>
+
+</div>
