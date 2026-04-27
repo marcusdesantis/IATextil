@@ -23,3 +23,21 @@ dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Ignorar grabaciones de Playwright/Cypress y archivos temporales de tests
+**/test-results/
+**/TestResults/
+
+# Ignorar archivos comprimidos (backups o trazas)
+*.zip
+*.rar
+*.7z
+
+# Ignorar base de datos local y backups de Postgres
+*.sql
+*.backup
+
+# Ignorar carpetas de entorno virtual (si usas algo de Python para la IA)
+venv/
+.venv/
+__pycache__/
