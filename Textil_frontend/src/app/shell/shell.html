@@ -27,6 +27,11 @@
     </div>
 
     <nav class="sidebar-nav">
+      <a class="nav-item" routerLink="/operator" routerLinkActive="nav-item--active" (click)="closeSidebar()">
+        <mat-icon>touch_app</mat-icon>
+        <span>Operator</span>
+      </a>
+      <div class="nav-divider"></div>
       <a class="nav-item" routerLink="/inspection" routerLinkActive="nav-item--active" (click)="closeSidebar()">
         <mat-icon>camera_alt</mat-icon>
         <span>Inspection</span>

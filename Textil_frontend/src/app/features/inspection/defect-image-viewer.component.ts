@@ -6,6 +6,7 @@ import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/materia
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { InspectionSnapshot, DefectAnnotation } from '../../core/models/inspection.models';
 import { InspectionService } from '../../core/services/inspection.service';
@@ -15,6 +16,7 @@ export interface DefectImageViewerData {
   snapshot: InspectionSnapshot;
   sectionCount: number;
   defectTypes: string[];
+  allowReselect?: boolean;
 }
 
 @Component({
@@ -27,6 +29,7 @@ export interface DefectImageViewerData {
     MatIconModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
+    MatSnackBarModule,
   ],
   template: `
     <!-- Header -->
@@ -96,9 +99,9 @@ export interface DefectImageViewerData {
           @if (imageLoaded) {
             <p class="overview-hint">
               <mat-icon>touch_app</mat-icon>
-              Tap a section to zoom in and save it as a defect annotation.
+              Tap on the image to mark where the defect is.
               @if (annotations.length > 0) {
-                &nbsp;<strong>{{ annotations.length }} section{{ annotations.length > 1 ? 's' : '' }} marked.</strong>
+                &nbsp;<strong>{{ annotations.length }} zone{{ annotations.length > 1 ? 's' : '' }} marked.</strong>
               }
             </p>
           }
@@ -113,8 +116,7 @@ export interface DefectImageViewerData {
               <mat-icon>arrow_back</mat-icon>
             </button>
             <div class="zoomed-label">
-              <span>Section {{ selectedSection }}</span>
-              <span class="zoomed-range">{{ sectionPercent(selectedSection) }}</span>
+              <span>Zone {{ selectedSection }} of {{ sectionCount }}</span>
               @if (savingAnnotation) {
                 <mat-spinner diameter="16" class="saving-spinner" />
               }
@@ -157,8 +159,7 @@ export interface DefectImageViewerData {
               [disabled]="savingAnnotation || !selectedDefectType"
               (click)="saveAnnotation()">
               <mat-icon>save</mat-icon>
-              Save section {{ selectedSection }}
-              @if (selectedDefectType) { — {{ selectedDefectType }} }
+              @if (selectedDefectType) { Mark as {{ selectedDefectType }} } @else { Select a defect type }
             </button>
           }
         </div>
@@ -167,7 +168,13 @@ export interface DefectImageViewerData {
     </mat-dialog-content>
 
     <mat-dialog-actions class="dialog-actions">
-      <span class="filename-hint">{{ data.snapshot.fileName }}</span>
+      @if (data.allowReselect) {
+        <button mat-stroked-button class="reselect-btn" (click)="reselect()">
+          <mat-icon>arrow_back</mat-icon>
+          Change ruler position
+        </button>
+      }
+      <span class="actions-spacer"></span>
       <button mat-stroked-button (click)="close()">Close</button>
     </mat-dialog-actions>
   `,
@@ -335,9 +342,10 @@ export interface DefectImageViewerData {
       padding: 10px 20px 14px !important; border-top: 1px solid #f3f4f6;
       display: flex; align-items: center; gap: 8px;
     }
-    .filename-hint {
-      flex: 1; font-size: 0.72rem; color: #9ca3af;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    .actions-spacer { flex: 1; }
+    .reselect-btn {
+      font-size: 0.88rem !important;
+      mat-icon { font-size: 16px; width: 16px; height: 16px; margin-right: 4px; }
     }
   `],
 })
@@ -366,6 +374,7 @@ export class DefectImageViewerComponent implements OnInit {
     private dialogRef: MatDialogRef<DefectImageViewerComponent>,
     @Inject(MAT_DIALOG_DATA) public data: DefectImageViewerData,
     private inspectionService: InspectionService,
+    private snackBar: MatSnackBar,
   ) {
     this.imageUrl = `${environment.apiBaseUrl}/api/inspection/snapshot-image/${data.snapshot.snapshotId}`;
 
@@ -450,22 +459,39 @@ export class DefectImageViewerComponent implements OnInit {
     if (this.selectedSection === null || this.savingAnnotation || !this.selectedDefectType) return;
 
     this.savingAnnotation = true;
+    const defectType = this.selectedDefectType;
     this.inspectionService
-      .createAnnotation(this.data.snapshot.snapshotId, this.selectedSection, this.selectedDefectType)
+      .createAnnotation(this.data.snapshot.snapshotId, this.selectedSection, defectType)
       .subscribe({
         next: (annotation) => {
           this.annotations = [...this.annotations, annotation];
           this.savingAnnotation = false;
-          // Re-render to show the teal saved border
-          setTimeout(() => this.renderZoom(this.selectedSection!), 0);
+          this.snackBar.open(`Saved as ${defectType}`, undefined, {
+            duration: 2500,
+            panelClass: ['snack-success'],
+            horizontalPosition: 'center',
+            verticalPosition: 'top',
+          });
+          setTimeout(() => {
+            this.selectedSection = null;
+            this.selectedDefectType = null;
+          }, 1200);
         },
         error: () => {
           this.savingAnnotation = false;
+          this.snackBar.open('Could not save. Please try again.', 'OK', {
+            duration: 4000,
+            panelClass: ['snack-error'],
+          });
         },
       });
   }
 
   close(): void {
     this.dialogRef.close();
+  }
+
+  reselect(): void {
+    this.dialogRef.close('reselect');
   }
 }

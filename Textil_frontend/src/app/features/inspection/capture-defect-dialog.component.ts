@@ -75,20 +75,15 @@ export interface CaptureDefectDialogResult {
         <!-- Info banner -->
         @if (selectedPosition) {
           <div class="info-banner info-banner--active">
-            <mat-icon>straighten</mat-icon>
-            <div>
-              <div class="info-banner__main">
-                Position <strong>#{{ selectedPosition.position }}</strong>
-                &nbsp;·&nbsp;
-                <strong>{{ selectedPosition.framesBack }} frames back</strong>
-              </div>
-              <div class="info-banner__sub">{{ selectedPosition.distanceCm }} cm from the camera</div>
+            <mat-icon>check_circle</mat-icon>
+            <div class="info-banner__main">
+              Position <strong>#{{ selectedPosition.position }}</strong> selected — ready to capture
             </div>
           </div>
         } @else {
           <div class="info-banner info-banner--idle">
             <mat-icon>touch_app</mat-icon>
-            <span>Select a ruler position to calculate the frame offset.</span>
+            <span>Select a position on the ruler above.</span>
           </div>
         }
       </div>
@@ -105,11 +100,7 @@ export interface CaptureDefectDialogResult {
         (click)="confirm()"
         [disabled]="!selectedPosition">
         <mat-icon>photo_camera</mat-icon>
-        @if (selectedPosition) {
-          Capture&nbsp;(–{{ selectedPosition.framesBack }}f)
-        } @else {
-          Capture
-        }
+        Capture
       </button>
     </mat-dialog-actions>
   `,
