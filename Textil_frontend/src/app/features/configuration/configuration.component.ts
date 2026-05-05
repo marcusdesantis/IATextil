@@ -33,12 +33,12 @@ import { CaptureConfigService } from '../../core/services/capture-config.service
 
       <div class="page-header">
         <div class="page-header__left">
-          <h1 class="page-title">Configuration</h1>
-          <span class="page-subtitle">Capture parameters and system settings</span>
+          <h1 class="page-title">Configurazione</h1>
+          <span class="page-subtitle">Parametri di cattura e impostazioni di sistema</span>
         </div>
         <a mat-stroked-button routerLink="/inspection" class="back-btn">
           <mat-icon>arrow_back</mat-icon>
-          Back to Inspection
+          Torna all'ispezione
         </a>
       </div>
 
@@ -47,8 +47,8 @@ import { CaptureConfigService } from '../../core/services/capture-config.service
         <div class="section-header">
           <mat-icon class="section-icon">tune</mat-icon>
           <div>
-            <div class="section-title">Capture parameters</div>
-            <div class="section-subtitle">Applied to every defect capture and recording session.</div>
+            <div class="section-title">Parametri di cattura</div>
+            <div class="section-subtitle">Applicati ad ogni cattura di difetti e sessione di registrazione.</div>
           </div>
         </div>
 
@@ -58,41 +58,41 @@ import { CaptureConfigService } from '../../core/services/capture-config.service
 
           <div class="field-group">
             <mat-form-field appearance="outline" class="field">
-              <mat-label>Buffer size (frames)</mat-label>
+              <mat-label>Dimensione buffer (fotogrammi)</mat-label>
               <input matInput type="number" [(ngModel)]="cfg.config.ringBufferSize" min="50" max="5000" />
-              <mat-icon matSuffix matTooltip="Maximum frames kept in memory. Applied when recording starts."
+              <mat-icon matSuffix matTooltip="Fotogrammi massimi mantenuti in memoria. Applicato all'avvio della registrazione."
                 matTooltipPosition="above" class="suffix-info">info_outline</mat-icon>
             </mat-form-field>
-            <p class="field-hint">Frames retained in the ring buffer while fabric is moving. Higher values allow capturing defects further back in time.</p>
+            <p class="field-hint">Fotogrammi conservati nel ring buffer mentre il tessuto è in movimento. Valori più alti consentono di catturare difetti più indietro nel tempo.</p>
           </div>
 
           <div class="field-group">
             <mat-form-field appearance="outline" class="field">
-              <mat-label>Default offset (frames back)</mat-label>
+              <mat-label>Offset predefinito (fotogrammi indietro)</mat-label>
               <input matInput type="number" [(ngModel)]="cfg.config.offsetFrames" min="1" [max]="cfg.config.ringBufferSize - 1" />
-              <mat-icon matSuffix matTooltip="Overridden automatically when a ruler position is selected in the capture dialog."
+              <mat-icon matSuffix matTooltip="Sostituito automaticamente quando si seleziona una posizione sul righello."
                 matTooltipPosition="above" class="suffix-info">info_outline</mat-icon>
             </mat-form-field>
-            <p class="field-hint">Frames to go back from the end of the buffer when no ruler position is specified. The ruler position will always take priority.</p>
+            <p class="field-hint">Fotogrammi da tornare indietro dalla fine del buffer quando non è specificata una posizione sul righello. La posizione del righello ha sempre la priorità.</p>
           </div>
 
           <div class="field-group">
             <mat-form-field appearance="outline" class="field">
-              <mat-label>Frames each side (±)</mat-label>
+              <mat-label>Fotogrammi per lato (±)</mat-label>
               <input matInput type="number" [(ngModel)]="cfg.config.frameCount" min="1" [max]="(cfg.config.ringBufferSize - 1) / 2" />
               <mat-icon matSuffix
-                [matTooltip]="'Frames stitched on each side of the defect center. Total reconstructed image: ' + (cfg.config.frameCount * 2 + 1) + ' frames.'"
+                [matTooltip]="'Fotogrammi uniti su ciascun lato del centro del difetto. Immagine ricostruita totale: ' + (cfg.config.frameCount * 2 + 1) + ' fotogrammi.'"
                 matTooltipPosition="above" class="suffix-info">info_outline</mat-icon>
             </mat-form-field>
-            <p class="field-hint">Controls the height of the stitched image. Total lines = frameCount × 2 + 1 = <strong>{{ cfg.config.frameCount * 2 + 1 }}</strong>.</p>
+            <p class="field-hint">Controlla l'altezza dell'immagine ricostruita. Linee totali = frameCount × 2 + 1 = <strong>{{ cfg.config.frameCount * 2 + 1 }}</strong>.</p>
           </div>
 
           <div class="field-group">
             <mat-form-field appearance="outline" class="field">
-              <mat-label>Default machine state</mat-label>
-              <input matInput [(ngModel)]="cfg.config.machineState" placeholder="e.g. Production" />
+              <mat-label>Stato macchina predefinito</mat-label>
+              <input matInput [(ngModel)]="cfg.config.machineState" placeholder="es. Produzione" />
             </mat-form-field>
-            <p class="field-hint">Label attached to each recording session. Can be overridden per session from the inspection page.</p>
+            <p class="field-hint">Etichetta associata a ogni sessione di registrazione. Può essere modificata per sessione dalla pagina di ispezione.</p>
           </div>
 
         </div>
@@ -100,11 +100,11 @@ import { CaptureConfigService } from '../../core/services/capture-config.service
         <div class="section-actions">
           <button mat-stroked-button (click)="reset()" class="reset-btn">
             <mat-icon>restart_alt</mat-icon>
-            Reset to defaults
+            Ripristina predefiniti
           </button>
           <button mat-raised-button color="primary" (click)="save()">
             <mat-icon>save</mat-icon>
-            Save settings
+            Salva impostazioni
           </button>
         </div>
       </div>
@@ -114,8 +114,8 @@ import { CaptureConfigService } from '../../core/services/capture-config.service
         <div class="section-header">
           <mat-icon class="section-icon section-icon--gray">settings_suggest</mat-icon>
           <div>
-            <div class="section-title">System configuration <span class="readonly-badge">Read-only</span></div>
-            <div class="section-subtitle">Loaded from the backend. Edit <code>appsettings.json → FabricSimulation</code> to change these values.</div>
+            <div class="section-title">Configurazione di sistema <span class="readonly-badge">Sola lettura</span></div>
+            <div class="section-subtitle">Caricato dal backend. Modifica <code>appsettings.json → FabricSimulation</code> per cambiare questi valori.</div>
           </div>
         </div>
 
@@ -123,31 +123,31 @@ import { CaptureConfigService } from '../../core/services/capture-config.service
 
         @if (!cfg.backendConfigLoaded) {
           <div class="loading-row">
-            <span>Loading system configuration…</span>
+            <span>Caricamento configurazione di sistema…</span>
           </div>
         } @else {
           <div class="readonly-grid">
 
             <div class="readonly-item">
-              <span class="readonly-label">Image sections</span>
+              <span class="readonly-label">Sezioni immagine</span>
               <span class="readonly-value">{{ cfg.imageSectionCount }}</span>
-              <span class="readonly-hint">Horizontal bands in the defect image viewer</span>
+              <span class="readonly-hint">Bande orizzontali nel visualizzatore immagini difetti</span>
             </div>
 
             <div class="readonly-item">
-              <span class="readonly-label">cm per frame</span>
+              <span class="readonly-label">cm per fotogramma</span>
               <span class="readonly-value">{{ cfg.cmPerFrame }}</span>
-              <span class="readonly-hint">Calibrated fabric speed / camera FPS</span>
+              <span class="readonly-hint">Velocità tessuto calibrata / FPS telecamera</span>
             </div>
 
             <div class="readonly-item">
-              <span class="readonly-label">Ruler positions</span>
+              <span class="readonly-label">Posizioni righello</span>
               <span class="readonly-value">{{ cfg.rulerPositions.length }}</span>
-              <span class="readonly-hint">Physical positions on the ruler (1–{{ cfg.rulerPositions.length }})</span>
+              <span class="readonly-hint">Posizioni fisiche sul righello (1–{{ cfg.rulerPositions.length }})</span>
             </div>
 
             <div class="readonly-item">
-              <span class="readonly-label">Defect types</span>
+              <span class="readonly-label">Tipi di difetto</span>
               <span class="readonly-value">{{ cfg.defectTypes.length }}</span>
               <span class="readonly-hint">
                 @for (dt of cfg.defectTypes; track dt) {
@@ -381,7 +381,7 @@ export class ConfigurationComponent implements OnInit {
 
   save(): void {
     this.cfg.save();
-    this.snackBar.open('Settings saved', 'Close', {
+    this.snackBar.open('Impostazioni salvate', 'Chiudi', {
       duration: 3000,
       panelClass: ['snack-success'],
       horizontalPosition: 'end',
@@ -391,7 +391,7 @@ export class ConfigurationComponent implements OnInit {
 
   reset(): void {
     this.cfg.reset();
-    this.snackBar.open('Reset to defaults', 'Close', {
+    this.snackBar.open('Valori predefiniti ripristinati', 'Chiudi', {
       duration: 3000,
       horizontalPosition: 'end',
       verticalPosition: 'bottom',

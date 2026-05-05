@@ -36,6 +36,13 @@ html, body {
 .mat-mdc-raised-button { border-radius: 8px !important; }
 .mat-mdc-outlined-button { border-radius: 8px !important; }
 
+// Dialog without internal scroll
+.dialog-no-scroll .mat-mdc-dialog-surface {
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+}
+
 // Snackbar themes (global — overlays are appended to <body>)
 .snack-success {
   --mdc-snackbar-container-color: #166534;

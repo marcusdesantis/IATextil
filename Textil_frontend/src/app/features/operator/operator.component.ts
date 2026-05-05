@@ -3,7 +3,7 @@ import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -11,16 +11,11 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { InspectionService } from '../../core/services/inspection.service';
 import { CaptureConfigService } from '../../core/services/capture-config.service';
 import { CameraInfo, InspectionSnapshot } from '../../core/models/inspection.models';
-import {
-  CaptureDefectDialogComponent,
-  CaptureDefectDialogResult,
-} from '../inspection/capture-defect-dialog.component';
+import { RulerPositionInfo } from '../inspection/capture-defect-dialog.component';
 import {
   DefectImageViewerComponent,
   DefectImageViewerData,
 } from '../inspection/defect-image-viewer.component';
-
-// ── Main operator page ────────────────────────────────────────────────────────
 
 type Phase = 'loading' | 'error' | 'moving' | 'stopped' | 'busy';
 
@@ -29,7 +24,6 @@ type Phase = 'loading' | 'error' | 'moving' | 'stopped' | 'busy';
   standalone: true,
   imports: [
     MatButtonModule,
-    MatDialogModule,
     MatIconModule,
     MatProgressSpinnerModule,
     MatSnackBarModule,
@@ -37,70 +31,73 @@ type Phase = 'loading' | 'error' | 'moving' | 'stopped' | 'busy';
   template: `
     <div class="op-page">
 
-<!-- ── Loading / Busy ─────────────────────────────────────────────────── -->
+      <!-- ── Loading / Busy ── -->
       @if (phase === 'loading' || phase === 'busy') {
         <div class="state-screen">
           <mat-spinner diameter="96" />
-          <span class="state-sub">{{ phase === 'busy' ? 'Processing, please wait…' : 'Connecting to camera…' }}</span>
+          <span class="state-sub">{{ phase === 'busy' ? 'Elaborazione in corso, attendere…' : 'Connessione alla telecamera…' }}</span>
         </div>
       }
 
-      <!-- ── Error ─────────────────────────────────────────────────────────── -->
+      <!-- ── Error ── -->
       @if (phase === 'error') {
         <div class="state-screen">
           <mat-icon class="state-icon icon--error">error_outline</mat-icon>
-          <span class="state-title title--error">System Error</span>
+          <span class="state-title title--error">Errore di sistema</span>
           <span class="state-sub">{{ errorMsg }}</span>
           <button mat-raised-button color="warn" class="btn-action" (click)="retry()">
             <mat-icon>refresh</mat-icon>
-            Try Again
+            Riprova
           </button>
         </div>
       }
 
-      <!-- ── Process running ───────────────────────────────────────────────── -->
+      <!-- ── Process running ── -->
       @if (phase === 'moving') {
         <div class="state-screen">
-          <mat-icon class="state-icon icon--moving">precision_manufacturing</mat-icon>
-          <span class="state-title title--moving">Process Running</span>
-          <span class="state-sub">Press the button below to stop and capture a defect</span>
-
+          <mat-icon class="state-icon icon--moving icon--spinning">settings</mat-icon>
+          <span class="state-title title--moving">Processo in corso</span>
+          <span class="state-sub">Premi il pulsante qui sotto per fermare e catturare un difetto</span>
           <button mat-raised-button class="btn-action btn--stop" (click)="toggleFabric()">
             <mat-icon>pan_tool</mat-icon>
-            Stop Process
+            Ferma processo
           </button>
         </div>
       }
 
-      <!-- ── Process stopped ───────────────────────────────────────────────── -->
+      <!-- ── Process stopped ── -->
       @if (phase === 'stopped') {
         <div class="state-screen">
           <mat-icon class="state-icon icon--stopped">back_hand</mat-icon>
-          <span class="state-title title--stopped">Process Stopped</span>
-          <span class="state-sub">Select a ruler position and capture the defect, or resume the process</span>
+          <span class="state-title title--stopped">Processo fermo</span>
 
-          <button mat-stroked-button class="btn-secondary" (click)="toggleFabric()">
+          <span class="state-sub">Seleziona la posizione sul righello dove hai visto il difetto</span>
+
+          <!-- Ruler position grid — tap to capture immediately -->
+          <div class="ruler-grid">
+            @for (pos of cfg.rulerPositions; track pos.position) {
+              <button type="button" class="pos-btn"
+                (click)="captureDefect(pos)">
+                {{ pos.position }}
+              </button>
+            }
+          </div>
+
+          <button class="btn-text-link" (click)="toggleFabric()">
             <mat-icon>precision_manufacturing</mat-icon>
-            Continue Process
-          </button>
-
-          <button mat-raised-button class="btn-action btn--capture"
-            (click)="captureDefect()"
-            [disabled]="phase !== 'stopped'">
-            <mat-icon>photo_camera</mat-icon>
-            Capture Defect
+            Continua senza catturare
           </button>
         </div>
       }
 
-      <!-- ── Last capture bar ───────────────────────────────────────────────── -->
+      <!-- ── Last capture bar ── -->
       @if (lastSnapshot) {
         <div class="last-bar">
           <mat-icon class="last-bar__icon">check_circle</mat-icon>
           <span class="last-bar__text">
-            Last capture at {{ formatTime(lastSnapshot.captureTimestamp) }}
+            Ultima cattura alle {{ formatTime(lastSnapshot.captureTimestamp) }}
             @if (lastSnapshot.defectType) { · <strong>{{ lastSnapshot.defectType }}</strong> }
-            @if (lastSnapshot.rulerPosition != null) { · Ruler #{{ lastSnapshot.rulerPosition }} }
+            @if (lastSnapshot.rulerPosition != null) { · Righello #{{ lastSnapshot.rulerPosition }} }
           </span>
         </div>
       }
@@ -142,6 +139,15 @@ type Phase = 'loading' | 'error' | 'moving' | 'stopped' | 'busy';
     .icon--stopped { color: #d97706; }
     .icon--error   { color: #dc2626; }
 
+    .icon--spinning {
+      animation: spin 3s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
     /* ── Titles ── */
     .state-title {
       font-size: 2.4rem;
@@ -159,6 +165,47 @@ type Phase = 'loading' | 'error' | 'moving' | 'stopped' | 'busy';
       color: #64748b;
       line-height: 1.5;
       max-width: 340px;
+    }
+
+    .state-sub--selected {
+      color: #15803d;
+      font-weight: 600;
+      strong { font-weight: 800; }
+    }
+
+    /* ── Ruler grid ── */
+    .ruler-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .pos-btn {
+      height: 68px;
+      border: 2px solid #e5e7eb;
+      border-radius: 14px;
+      background: #f9fafb;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #374151;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.1s, box-shadow 0.15s;
+
+      &:hover {
+        border-color: #a5b4fc;
+        background: #eef2ff;
+        color: #4f46e5;
+      }
+
+      &--selected {
+        border-color: #4f46e5;
+        background: #4f46e5;
+        color: white;
+        transform: scale(1.06);
+        box-shadow: 0 4px 14px rgba(79,70,229,0.4);
+      }
     }
 
     /* ── Primary action buttons ── */
@@ -198,16 +245,24 @@ type Phase = 'loading' | 'error' | 'moving' | 'stopped' | 'busy';
       mat-icon { font-size: 38px; width: 38px; height: 38px; }
     }
 
-    /* ── Secondary button ── */
-    .btn-secondary {
-      min-height: 60px;
-      min-width: 220px;
-      font-size: 1.1rem !important;
-      border-radius: 12px !important;
-      color: #374151 !important;
-      border-color: #d1d5db !important;
-      margin-top: 4px;
-      mat-icon { font-size: 24px; width: 24px; height: 24px; }
+    /* ── Text link (secondary action) ── */
+    .btn-text-link {
+      background: none;
+      border: 2px solid #d1d5db;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #4b5563;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 12px 24px;
+      border-radius: 12px;
+      margin-top: 12px;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+
+      mat-icon { font-size: 20px; width: 20px; height: 20px; }
+      &:hover { color: #111827; background: #f3f4f6; border-color: #9ca3af; }
     }
 
     /* ── Last capture bar ── */
@@ -249,7 +304,6 @@ export class OperatorComponent implements OnInit, OnDestroy {
   phase: Phase = 'loading';
   errorMsg = '';
   lastSnapshot: InspectionSnapshot | null = null;
-
   private camera: CameraInfo | null = null;
   private pollSub?: Subscription;
 
@@ -275,7 +329,7 @@ export class OperatorComponent implements OnInit, OnDestroy {
       next: (cameras) => {
         if (!cameras.length) {
           this.phase = 'error';
-          this.errorMsg = 'No cameras found. Check the backend connection.';
+          this.errorMsg = 'Nessuna telecamera trovata. Verifica la connessione al backend.';
           return;
         }
         this.camera = cameras[0];
@@ -283,7 +337,7 @@ export class OperatorComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.phase = 'error';
-        this.errorMsg = 'Could not connect to the system. Check the backend.';
+        this.errorMsg = 'Impossibile connettersi al sistema. Verifica il backend.';
       },
     });
   }
@@ -314,7 +368,7 @@ export class OperatorComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.phase = 'error';
-          this.errorMsg = 'Failed to start recording. Check the camera connection.';
+          this.errorMsg = 'Impossibile avviare la registrazione. Verifica la connessione della telecamera.';
         },
       });
   }
@@ -342,34 +396,17 @@ export class OperatorComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.phase = 'error';
-        this.errorMsg = 'Failed to change process state. Try again.';
+        this.errorMsg = 'Impossibile cambiare lo stato del processo. Riprova.';
       },
     });
   }
 
-  captureDefect(): void {
+  captureDefect(pos: RulerPositionInfo): void {
     if (!this.camera || this.phase !== 'stopped') return;
-
-    const openDialog = () => {
-      const ref = this.dialog.open(CaptureDefectDialogComponent, {
-        data: { cameraName: this.camera!.name, rulerPositions: this.cfg.rulerPositions },
-        width: '440px',
-        disableClose: false,
-      });
-      ref.afterClosed().subscribe((result: CaptureDefectDialogResult | undefined) => {
-        if (!result) return;
-        this.runCapture(result);
-      });
-    };
-
-    if (this.cfg.backendConfigLoaded) {
-      openDialog();
-    } else {
-      this.cfg.loadBackendConfig(openDialog);
-    }
+    this.runCapture({ rulerPosition: pos.position, framesBack: pos.framesBack });
   }
 
-  private runCapture(result: CaptureDefectDialogResult): void {
+  private runCapture(result: { rulerPosition: number; framesBack: number }): void {
     if (!this.camera) return;
     this.phase = 'busy';
     const { offsetFrames, frameCount, machineState } = this.cfg.config;
@@ -380,13 +417,13 @@ export class OperatorComponent implements OnInit, OnDestroy {
         result.framesBack ?? offsetFrames,
         frameCount,
         machineState || 'DefectCapture',
-        result.rulerPosition ?? undefined,
+        result.rulerPosition,
       )
       .subscribe({
         next: (snapshot) => {
           this.lastSnapshot = snapshot;
           this.phase = 'stopped';
-          this.snackBar.open('Defect captured successfully', 'OK', {
+          this.snackBar.open('Difetto catturato con successo', 'OK', {
             duration: 5500,
             panelClass: ['snack-success'],
             horizontalPosition: 'end',
@@ -397,7 +434,7 @@ export class OperatorComponent implements OnInit, OnDestroy {
         error: (err) => {
           this.phase = 'stopped';
           this.snackBar.open(
-            err?.error?.message ?? 'Failed to capture defect. Try again.',
+            err?.error?.message ?? 'Impossibile catturare il difetto. Riprova.',
             'OK',
             { duration: 5500, panelClass: ['snack-error'] },
           );
@@ -411,21 +448,16 @@ export class OperatorComponent implements OnInit, OnDestroy {
         snapshot,
         sectionCount: this.cfg.imageSectionCount,
         defectTypes: this.cfg.defectTypes,
-        allowReselect: true,
       } satisfies DefectImageViewerData,
       width: '860px',
       maxWidth: '96vw',
       disableClose: false,
-    }).afterClosed().subscribe((result: string | undefined) => {
-      if (result === 'reselect') {
-        this.captureDefect();
-      } else {
-        this.snackBar.open('Done. Press "Continue Process" when ready.', undefined, {
-          duration: 5000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom',
-        });
-      }
+    }).afterClosed().subscribe(() => {
+      this.snackBar.open('Fatto. Premi «Continua» quando sei pronto.', undefined, {
+        duration: 5000,
+        horizontalPosition: 'center',
+        verticalPosition: 'bottom',
+      });
     });
   }
 

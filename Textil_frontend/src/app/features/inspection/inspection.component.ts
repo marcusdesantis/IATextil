@@ -90,7 +90,7 @@ export class InspectionComponent implements OnInit, OnDestroy {
         this.refreshSessions();
       },
       error: () => {
-        this.globalError = 'Could not load cameras. Please verify the backend is running.';
+        this.globalError = 'Impossibile caricare le telecamere. Verifica che il backend sia in esecuzione.';
         this.loadingCameras = false;
       },
     });
@@ -139,11 +139,11 @@ export class InspectionComponent implements OnInit, OnDestroy {
         state.isPaused = false;
         state.loading = false;
         this.refreshSessions();
-        this.notify('Recording started', 'success');
+        this.notify('Registrazione avviata', 'success');
       },
       error: (err) => {
         state.loading = false;
-        this.notify(err?.error?.message ?? 'Failed to start recording', 'error');
+        this.notify(err?.error?.message ?? 'Impossibile avviare la registrazione', 'error');
       },
     });
   }
@@ -157,11 +157,11 @@ export class InspectionComponent implements OnInit, OnDestroy {
         state.fabricIsMoving = true;
         state.session = null;
         state.loading = false;
-        this.notify('Recording stopped', 'success');
+        this.notify('Registrazione fermata', 'success');
       },
       error: (err) => {
         state.loading = false;
-        this.notify(err?.error?.message ?? 'Failed to stop recording', 'error');
+        this.notify(err?.error?.message ?? 'Impossibile fermare la registrazione', 'error');
       },
     });
   }
@@ -176,13 +176,13 @@ export class InspectionComponent implements OnInit, OnDestroy {
         state.loading = false;
         this.refreshSessions();
         this.notify(
-          res.fabricIsMoving ? 'Fabric moving — buffer active' : 'Fabric stopped — buffer frozen',
+          res.fabricIsMoving ? 'Tessuto in movimento — buffer attivo' : 'Tessuto fermo — buffer congelato',
           'success'
         );
       },
       error: (err) => {
         state.loading = false;
-        this.notify(err?.error?.message ?? 'Failed to change fabric state', 'error');
+        this.notify(err?.error?.message ?? 'Impossibile cambiare lo stato del tessuto', 'error');
       },
     });
   }
@@ -195,7 +195,9 @@ export class InspectionComponent implements OnInit, OnDestroy {
           cameraName: state.camera.name,
           rulerPositions: this.cfg.rulerPositions,
         },
-        width: '440px',
+        width: '560px',
+        maxWidth: '95vw',
+        panelClass: 'dialog-no-scroll',
         disableClose: false,
       });
 
@@ -218,13 +220,13 @@ export class InspectionComponent implements OnInit, OnDestroy {
               state.lastSnapshot = snapshot;
               state.loading = false;
               const label = snapshot.defectType ? `[${snapshot.defectType}] ` : '';
-              const pos = snapshot.rulerPosition != null ? ` · ruler #${snapshot.rulerPosition}` : '';
-              this.notify(`${label}Defect captured: ${snapshot.fileName}${pos}`, 'success');
+              const pos = snapshot.rulerPosition != null ? ` · righello #${snapshot.rulerPosition}` : '';
+              this.notify(`${label}Difetto catturato: ${snapshot.fileName}${pos}`, 'success');
               this.openImageViewer(snapshot);
             },
             error: (err) => {
               state.loading = false;
-              this.notify(err?.error?.message ?? 'Failed to capture defect', 'error');
+              this.notify(err?.error?.message ?? 'Impossibile catturare il difetto', 'error');
             },
           });
       });
@@ -250,7 +252,7 @@ export class InspectionComponent implements OnInit, OnDestroy {
   }
 
   private notify(message: string, type: 'success' | 'error'): void {
-    this.snackBar.open(message, 'Close', {
+    this.snackBar.open(message, 'Chiudi', {
       duration: 4000,
       panelClass: type === 'error' ? ['snack-error'] : ['snack-success'],
       horizontalPosition: 'end',

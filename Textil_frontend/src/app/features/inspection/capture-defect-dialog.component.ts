@@ -1,11 +1,8 @@
 import { Component, Inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatDividerModule } from '@angular/material/divider';
 
 export interface RulerPositionInfo {
   position: number;
@@ -26,86 +23,70 @@ export interface CaptureDefectDialogResult {
 @Component({
   selector: 'app-capture-defect-dialog',
   standalone: true,
-  imports: [
-    FormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatIconModule,
-    MatTooltipModule,
-    MatDividerModule,
-  ],
+  imports: [MatDialogModule, MatButtonModule, MatIconModule],
   template: `
     <!-- Header -->
     <div class="dialog-header">
       <div class="dialog-header__icon">
-        <mat-icon>search</mat-icon>
+        <mat-icon>photo_camera</mat-icon>
       </div>
-      <div class="dialog-header__text">
-        <span class="dialog-header__title">Capture Defect</span>
-        <span class="dialog-header__camera">{{ data.cameraName }}</span>
-      </div>
+      <span class="dialog-header__title">Cattura Difetto</span>
       <button class="dialog-close-btn" mat-icon-button (click)="cancel()">
         <mat-icon>close</mat-icon>
       </button>
     </div>
 
-    <mat-dialog-content class="dialog-content">
+    <div class="dialog-content">
 
-      <!-- Section: Ruler position -->
+      <!-- Ruler strip -->
       <div class="section">
-        <div class="section-label">
-          <span>Ruler position</span>
-          <span class="required-badge">Required</span>
-        </div>
-        <p class="section-hint">Tap the number that matches the mark on the physical ruler.</p>
+        <p class="question-label">
+          <mat-icon>straighten</mat-icon>
+          Tocca la posizione sul righello dove hai visto il difetto
+        </p>
 
         <div class="ruler-grid">
           @for (pos of data.rulerPositions; track pos.position) {
-            <button type="button"
-              class="ruler-btn"
-              [class.ruler-btn--selected]="selectedPosition?.position === pos.position"
-              (click)="selectPosition(pos)"
-              [matTooltip]="pos.distanceCm + ' cm · ' + pos.framesBack + ' frames back'"
-              matTooltipPosition="above">
+            <button
+              type="button"
+              class="pos-btn"
+              [class.pos-btn--selected]="selectedPosition?.position === pos.position"
+              (click)="selectPosition(pos)">
               {{ pos.position }}
             </button>
           }
         </div>
 
-        <!-- Info banner -->
-        @if (selectedPosition) {
-          <div class="info-banner info-banner--active">
-            <mat-icon>check_circle</mat-icon>
-            <div class="info-banner__main">
-              Position <strong>#{{ selectedPosition.position }}</strong> selected — ready to capture
-            </div>
-          </div>
-        } @else {
-          <div class="info-banner info-banner--idle">
-            <mat-icon>touch_app</mat-icon>
-            <span>Select a position on the ruler above.</span>
-          </div>
-        }
+        <!-- Status banner -->
+        <div class="status-banner" [class.status-banner--active]="!!selectedPosition">
+          <mat-icon>{{ selectedPosition ? 'check_circle' : 'touch_app' }}</mat-icon>
+          <span>
+            @if (selectedPosition) {
+              Posizione <strong>#{{ selectedPosition.position }}</strong> selezionata — pronta per la cattura
+            } @else {
+              Seleziona una posizione sul righello
+            }
+          </span>
+        </div>
       </div>
 
-    </mat-dialog-content>
+    </div>
 
-    <!-- Actions -->
+    <!-- Actions — always visible, no scroll -->
     <mat-dialog-actions class="dialog-actions">
-      <button mat-stroked-button class="action-btn action-btn--cancel" (click)="cancel()">
-        Cancel
+      <button mat-stroked-button class="cancel-btn" (click)="cancel()">
+        Annulla
       </button>
-      <button mat-raised-button color="accent"
-        class="action-btn action-btn--confirm"
-        (click)="confirm()"
-        [disabled]="!selectedPosition">
+      <button mat-raised-button class="capture-btn"
+        [disabled]="!selectedPosition"
+        (click)="confirm()">
         <mat-icon>photo_camera</mat-icon>
-        Capture
+        Cattura
       </button>
     </mat-dialog-actions>
   `,
   styles: [`
-    /* ========== Header ========== */
+    /* ── Header ── */
     .dialog-header {
       display: flex;
       align-items: center;
@@ -114,148 +95,65 @@ export interface CaptureDefectDialogResult {
       background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
       color: white;
       border-radius: 4px 4px 0 0;
+      flex-shrink: 0;
     }
 
     .dialog-header__icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
-      padding: 6px;
-      flex-shrink: 0;
-
-      mat-icon {
-        font-size: 22px;
-        width: 22px;
-        height: 22px;
-      }
-    }
-
-    .dialog-header__text {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-      flex: 1;
-      min-width: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px; padding: 6px; flex-shrink: 0;
+      mat-icon { font-size: 22px; width: 22px; height: 22px; }
     }
 
     .dialog-header__title {
-      font-size: 0.95rem;
+      flex: 1;
+      font-size: 1.05rem;
       font-weight: 700;
-      line-height: 1.2;
-    }
-
-    .dialog-header__camera {
-      font-size: 0.75rem;
-      opacity: 0.8;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
     .dialog-close-btn {
-      color: white !important;
-      opacity: 0.8;
-      flex-shrink: 0;
+      color: white !important; opacity: 0.8; flex-shrink: 0;
       &:hover { opacity: 1; }
     }
 
-    /* ========== Content ========== */
+    /* ── Content ── */
     .dialog-content {
-      padding: 0 !important;
+      padding: 0;
       display: flex;
       flex-direction: column;
-      width: min(440px, 92vw);
-      max-height: 70vh;
-      overflow-y: auto;
     }
 
+    /* ── Ruler section ── */
     .section {
-      padding: 18px 20px;
+      padding: 20px 24px 14px;
     }
 
-    .section-label {
+    .question-label {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #374151;
-      margin-bottom: 12px;
-    }
-
-    .required-badge {
-      font-size: 0.65rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #dc2626;
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      border-radius: 20px;
-      padding: 1px 7px;
-    }
-
-    .section-hint {
-      font-size: 0.78rem;
-      color: #6b7280;
-      margin: -4px 0 12px;
-    }
-
-    /* ========== Defect type chips ========== */
-    .defect-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .defect-chip {
-      padding: 8px 16px;
-      border: 2px solid #e5e7eb;
-      border-radius: 20px;
-      background: #f9fafb;
-      font-size: 0.85rem;
+      font-size: 1.05rem;
       font-weight: 600;
       color: #374151;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s, color 0.15s;
-      white-space: nowrap;
+      margin: 0 0 16px;
 
-      &:hover {
-        border-color: #a5b4fc;
-        background: #eef2ff;
-        color: #4f46e5;
-      }
-
-      &--selected {
-        border-color: #4f46e5;
-        background: #4f46e5;
-        color: white;
-        box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
-      }
+      mat-icon { font-size: 20px; width: 20px; height: 20px; color: #6b7280; }
     }
 
-    /* ========== Ruler grid ========== */
+    /* ── Ruler grid ── */
     .ruler-grid {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 8px;
-      margin-bottom: 14px;
-
-      @media (max-width: 360px) {
-        grid-template-columns: repeat(4, 1fr);
-      }
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
     }
 
-    .ruler-btn {
-      min-height: 48px;
+    .pos-btn {
+      height: 72px;
       border: 2px solid #e5e7eb;
-      border-radius: 10px;
+      border-radius: 14px;
       background: #f9fafb;
-      font-size: 1rem;
+      font-size: 1.4rem;
       font-weight: 700;
       color: #374151;
       cursor: pointer;
@@ -263,7 +161,6 @@ export interface CaptureDefectDialogResult {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 0;
 
       &:hover {
         border-color: #a5b4fc;
@@ -276,83 +173,65 @@ export interface CaptureDefectDialogResult {
         background: #4f46e5;
         color: white;
         transform: scale(1.06);
-        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+        box-shadow: 0 4px 14px rgba(79,70,229,0.4);
       }
     }
 
-    /* ========== Info banner ========== */
-    .info-banner {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      border-radius: 10px;
-      padding: 11px 14px;
-      font-size: 0.83rem;
-
-      mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-        flex-shrink: 0;
-        margin-top: 1px;
-      }
-
-      &--active {
-        background: #eef2ff;
-        border: 1px solid #c7d2fe;
-        color: #3730a3;
-
-        mat-icon { color: #4f46e5; }
-      }
-
-      &--idle {
-        background: #f9fafb;
-        border: 1px dashed #d1d5db;
-        color: #9ca3af;
-
-        mat-icon { color: #d1d5db; }
-      }
-    }
-
-    .info-banner__main {
-      font-weight: 500;
-      line-height: 1.4;
-    }
-
-    .info-banner__sub {
-      font-size: 0.75rem;
-      color: #6366f1;
-      margin-top: 2px;
-    }
-
-    /* ========== Actions ========== */
-    .dialog-actions {
-      padding: 12px 20px 16px !important;
-      gap: 10px;
-      border-top: 1px solid #f3f4f6;
-    }
-
-    .action-btn {
-      flex: 1;
-      height: 44px;
-      font-size: 0.875rem;
-      font-weight: 600;
-    }
-
-    .action-btn--cancel {
-      flex: 0 0 auto;
-      min-width: 90px;
-    }
-
-    .action-btn--confirm {
+    /* ── Status banner ── */
+    .status-banner {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 500;
+      background: #f9fafb;
+      border: 1px dashed #d1d5db;
+      color: #9ca3af;
+      transition: all 0.2s;
 
-      mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
+      mat-icon { font-size: 20px; width: 20px; height: 20px; flex-shrink: 0; }
+      strong { font-weight: 700; }
+
+      &--active {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #15803d;
+        mat-icon { color: #16a34a; }
+      }
+    }
+
+    /* ── Footer ── */
+    .dialog-actions {
+      padding: 14px 24px 18px !important;
+      border-top: 1px solid #f3f4f6;
+      display: flex;
+      gap: 12px;
+    }
+
+    .cancel-btn {
+      height: 56px;
+      font-size: 1rem !important;
+      min-width: 110px;
+    }
+
+    .capture-btn {
+      flex: 1;
+      height: 56px !important;
+      font-size: 1.1rem !important;
+      font-weight: 700 !important;
+      background-color: #4f46e5 !important;
+      color: white !important;
+      box-shadow: 0 4px 16px rgba(79,70,229,0.35) !important;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+
+      mat-icon { font-size: 24px; width: 24px; height: 24px; }
+
+      &:disabled {
+        background-color: #e5e7eb !important;
+        color: #9ca3af !important;
+        box-shadow: none !important;
       }
     }
   `],
