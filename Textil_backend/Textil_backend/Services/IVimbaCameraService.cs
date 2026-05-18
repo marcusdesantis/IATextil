@@ -36,14 +36,18 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
 
     public IReadOnlyList<CameraInfoDto> GetCameras()
     {
-        return _vmbSystem.GetCameras().Select(c => new CameraInfoDto
-        {
-            Id = c.Id,
-            Serial = c.Serial,
-            Name = c.Name,
-            ModelName = c.ModelName,
-            InterfaceName = c.Interface?.Name
-        }).ToList();
+        return _vmbSystem.GetCameras()
+       .Where(c => !c.Id.Contains("rdma", StringComparison.OrdinalIgnoreCase))
+       .GroupBy(c => c.Serial)
+       .Select(g => g.First())
+       .Select(c => new CameraInfoDto
+       {
+           Id = c.Id,
+           Serial = c.Serial,
+           Name = c.Name,
+           ModelName = c.ModelName,
+           InterfaceName = c.Interface?.Name
+       }).ToList();
     }
 
     public IReadOnlyList<object> GetActiveSessions()
@@ -84,6 +88,34 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         });
 
         var openCamera = camera.Open();
+        //if (openCamera.Features.Contains("GVSPAdjustPacketSize"))
+        //{
+        //    openCamera.Features["GVSPAdjustPacketSize"].Run();
+        //}
+
+        // 3. Configurar Trigger y empezar
+        openCamera.Features["TriggerSelector"].Value = "FrameStart";
+        openCamera.Features["TriggerMode"].Value = "Off";
+
+        openCamera.Features["TriggerSelector"].Value = "LineStart";
+        openCamera.Features["TriggerMode"].Value = "Off";
+        openCamera.Features["AcquisitionMode"].Value = "Continuous";
+        openCamera.Features["ExposureTime"].Value = 998.5;
+        openCamera.Features["AcquisitionLineRate"].Value = 1000.0;
+        //openCamera.Features["TriggerSource"].Value = "Internal";
+        //openCamera.Features["ScanDirectionSource"].Value = "Internal";
+        //session.Acquisition = openCamera.StartFrameAcquisition();
+
+
+        //openCamera.Features["AcquisitionMode"].Value = "Continuous";
+        //openCamera.Features["TriggerSource"].Value = "Software";
+
+        //openCamera.Features["GVSPAdjustPacketSize"].Run();
+
+        //openCamera.Features["AcquisitionStart"].Run();
+
+        //openCamera.Features["AcquisitionFrameRateEnable"].Value = false;
+
         var session = new ActiveRecordingSession
         {
             CameraId = camera.Id,
@@ -135,6 +167,7 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         };
 
         session.Acquisition = openCamera.StartFrameAcquisition();
+        //openCamera.Features["AcquisitionStart"].Run();
         _sessions.TryAdd(normalizedId, session);
 
         return folder;
