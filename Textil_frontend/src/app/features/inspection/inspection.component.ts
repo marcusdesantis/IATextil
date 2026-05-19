@@ -236,8 +236,8 @@ export class InspectionComponent implements OnInit, OnDestroy {
   openImageViewer(snapshot: InspectionSnapshot): void {
     this.dialog.open(DefectImageViewerComponent, {
       data: { snapshot, sectionCount: this.cfg.imageSectionCount, defectTypes: this.cfg.defectTypes } satisfies DefectImageViewerData,
-      width: '860px',
-      maxWidth: '96vw',
+      width: '1000px',
+      maxWidth: '98vw',
       disableClose: false,
     });
   }

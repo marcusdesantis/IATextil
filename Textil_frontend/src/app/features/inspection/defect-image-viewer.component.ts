@@ -193,7 +193,7 @@ export interface DefectImageViewerData {
 
     .defect-image {
       width: 100%; height: auto; display: block;
-      max-height: 260px; object-fit: contain; background: #000;
+      max-height: 380px; object-fit: contain; background: #000;
       &--hidden { visibility: hidden; }
     }
 
@@ -202,8 +202,8 @@ export interface DefectImageViewerData {
     }
 
     .section-band {
-      flex: 1; border-right: 1px solid rgba(255,255,255,0.15); cursor: pointer;
-      display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px;
+      flex: 1; border-right: 1px solid rgba(255,255,255,0.25); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
       transition: background 0.12s;
       &:last-child { border-right: none; }
       &:hover { background: rgba(79,70,229,0.35); }
@@ -219,22 +219,23 @@ export interface DefectImageViewerData {
     }
 
     .selected-icon {
-      font-size: 22px; width: 22px; height: 22px;
-      color: #f97316; filter: drop-shadow(0 0 6px rgba(249,115,22,0.8));
-      pointer-events: none; margin-bottom: 4px;
-    }
-
-    .section-label {
-      font-size: 0.85rem; font-weight: 700;
-      color: rgba(255,255,255,0.9);
-      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+      font-size: 30px; width: 30px; height: 30px;
+      color: #f97316; filter: drop-shadow(0 0 8px rgba(249,115,22,0.9));
       pointer-events: none;
     }
 
+    .section-label {
+      font-size: 2rem; font-weight: 800;
+      color: white;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.5);
+      pointer-events: none;
+      line-height: 1;
+    }
+
     .annotated-icon {
-      font-size: 20px; width: 20px; height: 20px;
-      color: #14b8a6; filter: drop-shadow(0 0 4px rgba(20,184,166,0.8));
-      pointer-events: none; margin-bottom: 4px;
+      font-size: 28px; width: 28px; height: 28px;
+      color: #14b8a6; filter: drop-shadow(0 0 5px rgba(20,184,166,0.9));
+      pointer-events: none;
     }
 
     .saving-spinner { pointer-events: none; margin-bottom: 4px; }
@@ -248,7 +249,7 @@ export interface DefectImageViewerData {
     /* ── Status hint ── */
     .overview-hint {
       display: flex; align-items: center; gap: 8px;
-      font-size: 0.95rem; color: #6b7280; margin: 0;
+      font-size: 1.15rem; color: #6b7280; margin: 0;
       padding: 10px 14px; border-radius: 10px; background: #f9fafb;
       border: 1px solid #e5e7eb; transition: border-color 0.2s, background 0.2s;
       mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; color: #9ca3af; }
@@ -284,18 +285,20 @@ export interface DefectImageViewerData {
 
     .picker-label { font-size: 1rem; font-weight: 700; color: #374151; }
 
-    .picker-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+    .picker-chips { display: flex; flex-wrap: wrap; gap: 12px; }
 
     .picker-chip {
-      padding: 12px 22px;
-      border: 2px solid #e5e7eb; border-radius: 12px;
-      background: #f9fafb; font-size: 1rem; font-weight: 600; color: #374151;
+      padding: 18px 32px;
+      border: 2.5px solid #e5e7eb; border-radius: 14px;
+      background: #f9fafb; font-size: 1.2rem; font-weight: 700; color: #374151;
       cursor: pointer; transition: all 0.12s; white-space: nowrap;
+      min-height: 60px; display: flex; align-items: center;
 
       &:hover { border-color: #5eead4; background: #f0fdfa; color: #0f766e; }
       &--selected {
         border-color: #14b8a6; background: #14b8a6; color: white;
-        box-shadow: 0 2px 10px rgba(20,184,166,0.35);
+        box-shadow: 0 3px 14px rgba(20,184,166,0.4);
+        transform: scale(1.04);
       }
     }
 

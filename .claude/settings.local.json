@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($dll = 'c:\\\\projects\\\\textil\\\\Textil_backend\\\\Textil_backend\\\\bin\\\\Debug\\\\net10.0\\\\VmbNET.dll'; $asm = [Reflection.Assembly]::LoadFrom\\($dll\\); $t = $asm.GetType\\('VmbNET.IOpenCamera'\\); 'Interfaces: '; $t.GetInterfaces\\(\\) | ForEach-Object { $_.FullName }; '---'; 'Methods: '; $t.GetMethods\\(\\) | Select-Object Name | Sort-Object Name | Get-Unique -AsString | Format-Table -AutoSize)"
+    ]
+  }
+}
