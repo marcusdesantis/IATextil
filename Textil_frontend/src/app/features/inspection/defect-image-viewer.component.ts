@@ -387,7 +387,7 @@ export class DefectImageViewerComponent implements OnInit {
         next: (annotation) => {
           this.annotations = [...this.annotations, annotation];
           this.savingAnnotation = false;
-          this.selectedSection = null;
+          this.dialogRef.close(true);
           this.snackBar.open(`Salvato come ${defectType}`, undefined, {
             duration: 2000,
             panelClass: ['snack-success'],

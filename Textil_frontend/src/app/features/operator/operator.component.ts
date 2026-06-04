@@ -452,12 +452,16 @@ export class OperatorComponent implements OnInit, OnDestroy {
       width: '1000px',
       maxWidth: '98vw',
       disableClose: false,
-    }).afterClosed().subscribe(() => {
-      this.snackBar.open('Fatto. Premi «Continua» quando sei pronto.', undefined, {
-        duration: 5000,
-        horizontalPosition: 'center',
-        verticalPosition: 'bottom',
-      });
+    }).afterClosed().subscribe((saved) => {
+      if (saved) {
+        this.toggleFabric();
+      } else {
+        this.snackBar.open('Fatto. Premi «Continua» quando sei pronto.', undefined, {
+          duration: 5000,
+          horizontalPosition: 'center',
+          verticalPosition: 'bottom',
+        });
+      }
     });
   }
 
