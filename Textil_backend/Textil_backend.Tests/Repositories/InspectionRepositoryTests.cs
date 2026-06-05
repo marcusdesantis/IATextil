@@ -139,14 +139,14 @@ public class InspectionRepositoryTests
         {
             SnapshotId = snapshot.SnapshotId,
             SectionIndex = 3,
-            DefectType = "Slub",
+            DefectType = "Nodi",
             CreatedAt = DateTime.UtcNow,
         };
 
         var result = await repo.SaveAnnotationAsync(annotation);
 
         result.AnnotationId.Should().BeGreaterThan(0);
-        result.DefectType.Should().Be("Slub");
+        result.DefectType.Should().Be("Nodi");
         result.SectionIndex.Should().Be(3);
     }
 

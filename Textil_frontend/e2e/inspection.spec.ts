@@ -26,7 +26,7 @@ const ACTIVE_SESSION = {
 };
 
 const RULER_CONFIG = {
-  defectTypes: ['Slub', 'Floats', 'Knot', 'Holes', 'Ladder'],
+  defectTypes: ['Buchi', 'Impurità', 'Fili irregolari', 'Fili tesi', 'Fili trapuntati', 'Macchie', 'Rientro di trama', 'Piccole macchie', 'Nodi', 'Buco/abrasione', 'Filo tirato', 'Pieghe', 'Trama Falsa', 'Nodi a rovescio', 'Stizzi e micropieghe'],
   imageSectionCount: 10,
   positionCount: 12,
   baseDistanceCm: 50,
@@ -405,7 +405,7 @@ test.describe('Inspection page', () => {
       annotationId: 1,
       snapshotId: 42,
       sectionIndex: 3,
-      defectType: 'Slub',
+      defectType: 'Nodi',
       cropImagePath: null,
       createdAt: '2024-01-01T12:00:00Z',
     };
@@ -448,10 +448,10 @@ test.describe('Inspection page', () => {
     await expect(page.locator('.zoomed-wrapper')).toBeVisible();
     await expect(page.locator('.zoomed-label')).toContainText('Section 3');
 
-    // Defect type picker is visible; select "Slub"
+    // Defect type picker is visible; select "Nodi"
     await expect(page.locator('.picker-chip').first()).toBeVisible();
-    await page.locator('.picker-chip', { hasText: 'Slub' }).click();
-    await expect(page.locator('.picker-chip--selected')).toContainText('Slub');
+    await page.locator('.picker-chip', { hasText: 'Nodi' }).click();
+    await expect(page.locator('.picker-chip--selected')).toContainText('Nodi');
 
     // Save annotation
     await page.locator('.save-btn').click();
@@ -495,8 +495,8 @@ test.describe('Configuration page', () => {
     await expect(page.getByText('10')).toBeVisible();             // imageSectionCount
     await expect(page.getByText('0.4')).toBeVisible();            // cmPerFrame
     // Defect type chips from RULER_CONFIG
-    await expect(page.getByText('Slub')).toBeVisible();
-    await expect(page.getByText('Floats')).toBeVisible();
+    await expect(page.getByText('Buchi')).toBeVisible();
+    await expect(page.getByText('Impurità')).toBeVisible();
   });
 
   // ── Flow 12b: Save shows snackbar ──────────────────────────────────────────

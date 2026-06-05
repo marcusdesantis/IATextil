@@ -7,7 +7,7 @@ import { InspectionService } from './inspection.service';
 // ── Fake ruler config returned by the backend ─────────────────────────────────
 
 const FAKE_RULER_CONFIG = {
-  defectTypes: ['Slub', 'Floats', 'Knot', 'Holes', 'Ladder'],
+  defectTypes: ['Buchi', 'Impurità', 'Fili irregolari', 'Fili tesi', 'Fili trapuntati', 'Macchie', 'Rientro di trama', 'Piccole macchie', 'Nodi', 'Buco/abrasione', 'Filo tirato', 'Pieghe', 'Trama Falsa', 'Nodi a rovescio', 'Stizzi e micropieghe'],
   imageSectionCount: 10,
   positionCount: 12,
   baseDistanceCm: 50,
@@ -58,7 +58,7 @@ describe('CaptureConfigService', () => {
 
       service.loadBackendConfig();
 
-      expect(service.defectTypes).toEqual(['Slub', 'Floats', 'Knot', 'Holes', 'Ladder']);
+      expect(service.defectTypes).toEqual(['Buchi', 'Impurità', 'Fili irregolari', 'Fili tesi', 'Fili trapuntati', 'Macchie', 'Rientro di trama', 'Piccole macchie', 'Nodi', 'Buco/abrasione', 'Filo tirato', 'Pieghe', 'Trama Falsa', 'Nodi a rovescio', 'Stizzi e micropieghe']);
       expect(service.rulerPositions.length).toBe(2);
       expect(service.cmPerFrame).toBe(0.4);
       expect(service.imageSectionCount).toBe(10);

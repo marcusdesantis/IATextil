@@ -56,7 +56,7 @@ const FAKE_ANNOTATION: DefectAnnotation = {
   annotationId: 1,
   snapshotId: 1,
   sectionIndex: 3,
-  defectType: 'Slub',
+  defectType: 'Nodi',
   cropImagePath: 'captures/DEV_001/snapshot_001_s3.png',
   createdAt: '2026-04-24T10:01:00Z',
 };
@@ -102,7 +102,7 @@ describe('InspectionService', () => {
   describe('getRulerConfig', () => {
     it('should GET /ruler-config and return the full config object', () => {
       const fakeConfig = {
-        defectTypes: ['Slub', 'Floats', 'Knot', 'Holes', 'Ladder'],
+        defectTypes: ['Buchi', 'Impurità', 'Fili irregolari', 'Fili tesi', 'Fili trapuntati', 'Macchie', 'Rientro di trama', 'Piccole macchie', 'Nodi', 'Buco/abrasione', 'Filo tirato', 'Pieghe', 'Trama Falsa', 'Nodi a rovescio', 'Stizzi e micropieghe'],
         imageSectionCount: 10,
         positionCount: 12,
         baseDistanceCm: 50,
@@ -118,7 +118,7 @@ describe('InspectionService', () => {
       expect(req.request.method).toBe('GET');
       req.flush(fakeConfig);
 
-      expect(result.defectTypes).toEqual(['Slub', 'Floats', 'Knot', 'Holes', 'Ladder']);
+      expect(result.defectTypes).toEqual(['Buchi', 'Impurità', 'Fili irregolari', 'Fili tesi', 'Fili trapuntati', 'Macchie', 'Rientro di trama', 'Piccole macchie', 'Nodi', 'Buco/abrasione', 'Filo tirato', 'Pieghe', 'Trama Falsa', 'Nodi a rovescio', 'Stizzi e micropieghe']);
       expect(result.positionCount).toBe(12);
       expect(result.positions.length).toBe(1);
     });
@@ -329,15 +329,15 @@ describe('InspectionService', () => {
     it('should POST to /snapshot/{snapshotId}/annotations with correct body', () => {
       let result: DefectAnnotation | undefined;
 
-      service.createAnnotation(1, 3, 'Slub').subscribe(data => (result = data));
+      service.createAnnotation(1, 3, 'Nodi').subscribe(data => (result = data));
 
       const req = httpMock.expectOne(`${BASE}/snapshot/1/annotations`);
       expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual({ sectionIndex: 3, defectType: 'Slub' });
+      expect(req.request.body).toEqual({ sectionIndex: 3, defectType: 'Nodi' });
       req.flush(FAKE_ANNOTATION);
 
       expect(result?.sectionIndex).toBe(3);
-      expect(result?.defectType).toBe('Slub');
+      expect(result?.defectType).toBe('Nodi');
     });
 
     it('should send defectType as null when not provided', () => {

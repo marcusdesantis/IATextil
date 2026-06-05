@@ -285,14 +285,19 @@ export interface DefectImageViewerData {
 
     .picker-label { font-size: 1rem; font-weight: 700; color: #374151; }
 
-    .picker-chips { display: flex; flex-wrap: wrap; gap: 12px; }
+    .picker-chips {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
 
     .picker-chip {
-      padding: 18px 32px;
+      padding: 14px 10px;
       border: 2.5px solid #e5e7eb; border-radius: 14px;
-      background: #f9fafb; font-size: 1.2rem; font-weight: 700; color: #374151;
-      cursor: pointer; transition: all 0.12s; white-space: nowrap;
-      min-height: 60px; display: flex; align-items: center;
+      background: #f9fafb; font-size: 1rem; font-weight: 700; color: #374151;
+      cursor: pointer; transition: all 0.12s;
+      min-height: 58px; width: 100%; display: flex; align-items: center;
+      justify-content: center; text-align: center; line-height: 1.25;
 
       &:hover { border-color: #5eead4; background: #f0fdfa; color: #0f766e; }
       &--selected {

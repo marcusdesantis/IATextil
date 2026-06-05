@@ -12,7 +12,7 @@ C# model: `Textil_backend/Textil_backend/Models/FabricSettings.cs`
 | `RingBufferSize` | int | `500` | Maximum number of frames retained in memory while the fabric moves. Applied when each recording starts. |
 | `DefaultOffsetFrames` | int | `100` | Number of frames to go back in the buffer when capturing a defect without using the ruler rule. |
 | `DefaultFrameCount` | int | `20` | Frames taken on each side of the defect center to build the stitched image. Total image = `frameCount × 2 + 1` frames. |
-| `DefectTypes` | string[] | `Slub, Floats, Knot, Holes, Ladder` | Defect types available in the capture dialog and in the image viewer. |
+| `DefectTypes` | string[] | `Buchi, Impurità, Fili irregolari, Fili tesi, Fili trapuntati, Macchie, Rientro di trama, Piccole macchie, Nodi, Buco/abrasione, Filo tirato, Pieghe, Trama Falsa, Nodi a rovescio, Stizzi e micropieghe` | Defect types available in the capture dialog and in the image viewer. |
 
 ---
 
@@ -92,7 +92,7 @@ frames_back(P) = round(distance_cm(P) / CmPerFrame)
     "RingBufferSize": 500,
     "DefaultOffsetFrames": 100,
     "DefaultFrameCount": 20,
-    "DefectTypes": [ "Slub", "Floats", "Knot", "Holes", "Ladder" ],
+    "DefectTypes": [ "Buchi", "Impurità", "Fili irregolari", "Fili tesi", "Fili trapuntati", "Macchie", "Rientro di trama", "Piccole macchie", "Nodi", "Buco/abrasione", "Filo tirato", "Pieghe", "Trama Falsa", "Nodi a rovescio", "Stizzi e micropieghe" ],
     "ImageSectionCount": 10,
     "RulerBaseDistanceCm": 50.0,
     "RulerPositionCount": 12,

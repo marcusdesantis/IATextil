@@ -33,7 +33,7 @@ public class InspectionControllerTests : IClassFixture<InspectionWebAppFactory>
         CaptureTimestamp = DateTime.UtcNow,
         CameraFrameId = 12345,
         MachineState = "DefectCapture",
-        DefectType = "Slub",
+        DefectType = "Nodi",
         RulerPosition = 3,
         CalculatedOffsetFrames = 156,
     };
@@ -101,7 +101,7 @@ public class InspectionControllerTests : IClassFixture<InspectionWebAppFactory>
         var body = await response.Content.ReadFromJsonAsync<RulerConfigResponse>();
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        body!.DefectTypes.Should().Contain(["Slub", "Floats", "Knot", "Holes", "Ladder"]);
+        body!.DefectTypes.Should().Contain(["Buchi", "Impurità", "Fili irregolari", "Fili tesi", "Fili trapuntati", "Macchie", "Rientro di trama", "Piccole macchie", "Nodi", "Buco/abrasione", "Filo tirato", "Pieghe", "Trama Falsa", "Nodi a rovescio", "Stizzi e micropieghe"]);
         body!.PositionCount.Should().Be(12);
         body.Positions.Should().HaveCount(12);
     }
@@ -280,7 +280,7 @@ public class InspectionControllerTests : IClassFixture<InspectionWebAppFactory>
     public async Task CaptureDefect_Returns400_ForInvalidRulerPosition(int badPosition)
     {
         var response = await _client.PostAsync(
-            $"/api/inspection/capture-defect/DEV_001?defectType=Slub&rulerPosition={badPosition}", null);
+            $"/api/inspection/capture-defect/DEV_001?defectType=Nodi&rulerPosition={badPosition}", null);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var json = await response.Content.ReadAsStringAsync();

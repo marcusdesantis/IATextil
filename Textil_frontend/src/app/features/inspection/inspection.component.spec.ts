@@ -66,7 +66,7 @@ describe('InspectionComponent', () => {
       backendConfigLoaded: true,
       rulerPositions: [],
       imageSectionCount: 10,
-      defectTypes: ['Slub', 'Knot'],
+      defectTypes: ['Buchi', 'Nodi'],
       loadBackendConfig: jasmine.createSpy('loadBackendConfig').and.callFake(
         (cb?: () => void) => cb?.()
       ),

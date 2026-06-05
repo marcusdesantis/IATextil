@@ -15,7 +15,7 @@ function makeCfg(overrides: Partial<{ backendConfigLoaded: boolean }> = {}) {
     imageSectionCount: 10,
     cmPerFrame: 0.4,
     rulerPositions: [{ position: 1 }, { position: 12 }],
-    defectTypes: ['Slub', 'Knot'],
+    defectTypes: ['Buchi', 'Nodi'],
     loadBackendConfig: jasmine.createSpy('loadBackendConfig'),
     save: jasmine.createSpy('save'),
     reset: jasmine.createSpy('reset'),
@@ -138,7 +138,7 @@ describe('ConfigurationComponent', () => {
     expect(content).toContain('10');   // imageSectionCount
     expect(content).toContain('0.4'); // cmPerFrame
     expect(content).toContain('2');   // rulerPositions.length
-    expect(content).toContain('Slub');
-    expect(content).toContain('Knot');
+    expect(content).toContain('Buchi');
+    expect(content).toContain('Nodi');
   });
 });

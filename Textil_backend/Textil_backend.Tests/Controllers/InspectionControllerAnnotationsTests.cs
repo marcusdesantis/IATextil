@@ -36,7 +36,7 @@ public class InspectionControllerAnnotationsTests : IClassFixture<InspectionWebA
         AnnotationId = 1,
         SnapshotId = snapshotId,
         SectionIndex = section,
-        DefectType = "Slub",
+        DefectType = "Nodi",
         CropImagePath = $"captures/DEV_001/snapshot_001_s{section}.png",
         CreatedAt = DateTime.UtcNow,
     };
@@ -127,7 +127,7 @@ public class InspectionControllerAnnotationsTests : IClassFixture<InspectionWebA
     [InlineData(-1)]
     public async Task CreateAnnotation_Returns400_ForInvalidSectionIndex(int badSection)
     {
-        var body = JsonContent.Create(new { SectionIndex = badSection, DefectType = "Slub" });
+        var body = JsonContent.Create(new { SectionIndex = badSection, DefectType = "Nodi" });
 
         var response = await _client.PostAsync("/api/inspection/snapshot/1/annotations", body);
 
@@ -140,7 +140,7 @@ public class InspectionControllerAnnotationsTests : IClassFixture<InspectionWebA
     public async Task CreateAnnotation_Returns404_WhenSnapshotNotFound()
     {
         _factory.Repository.GetSnapshotAsync(999).Returns((InspectionSnapshot?)null);
-        var body = JsonContent.Create(new { SectionIndex = 3, DefectType = "Knot" });
+        var body = JsonContent.Create(new { SectionIndex = 3, DefectType = "Buchi" });
 
         var response = await _client.PostAsync("/api/inspection/snapshot/999/annotations", body);
 
@@ -157,7 +157,7 @@ public class InspectionControllerAnnotationsTests : IClassFixture<InspectionWebA
         _factory.Repository.GetAnnotationsBySnapshotAsync(10)
             .Returns(new[] { existing });
 
-        var body = JsonContent.Create(new { SectionIndex = 3, DefectType = "Slub" });
+        var body = JsonContent.Create(new { SectionIndex = 3, DefectType = "Nodi" });
 
         var response = await _client.PostAsync("/api/inspection/snapshot/10/annotations", body);
 
@@ -176,7 +176,7 @@ public class InspectionControllerAnnotationsTests : IClassFixture<InspectionWebA
         _factory.Storage.GetAbsolutePath(Arg.Any<string>())
             .Returns(@"C:\nonexistent\path\file.bin");
 
-        var body = JsonContent.Create(new { SectionIndex = 2, DefectType = "Holes" });
+        var body = JsonContent.Create(new { SectionIndex = 2, DefectType = "Buchi" });
 
         var response = await _client.PostAsync("/api/inspection/snapshot/20/annotations", body);
 
