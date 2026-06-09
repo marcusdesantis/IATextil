@@ -38,7 +38,6 @@ html, body {
 
 // Dialog without internal scroll
 .dialog-no-scroll .mat-mdc-dialog-surface {
-  overflow: hidden !important;
   display: flex;
   flex-direction: column;
 }

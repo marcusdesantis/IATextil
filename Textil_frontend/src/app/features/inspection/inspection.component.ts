@@ -197,7 +197,6 @@ export class InspectionComponent implements OnInit, OnDestroy {
         },
         width: '560px',
         maxWidth: '95vw',
-        panelClass: 'dialog-no-scroll',
         disableClose: false,
       });
 

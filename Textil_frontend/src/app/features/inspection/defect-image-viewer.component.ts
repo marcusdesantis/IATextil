@@ -176,7 +176,7 @@ export interface DefectImageViewerData {
     .dialog-content { padding: 0 !important; display: flex; flex-direction: column; }
 
     /* ── Overview ── */
-    .overview-wrapper { display: flex; flex-direction: column; padding: 16px; gap: 14px; }
+    .overview-wrapper { display: flex; flex-direction: column; padding: 12px; gap: 10px; }
 
     .image-container {
       position: relative; line-height: 0; border-radius: 10px;
@@ -193,7 +193,7 @@ export interface DefectImageViewerData {
 
     .defect-image {
       width: 100%; height: auto; display: block;
-      max-height: 380px; object-fit: contain; background: #000;
+      max-height: 45vh; object-fit: contain; background: #000;
       &--hidden { visibility: hidden; }
     }
 
@@ -271,8 +271,8 @@ export interface DefectImageViewerData {
 
     /* ── Type picker ── */
     .defect-type-picker {
-      display: flex; flex-direction: column; gap: 10px;
-      padding: 14px; border-radius: 12px;
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 10px; border-radius: 12px;
       border: 2px solid #e5e7eb; background: #fff;
       transition: border-color 0.2s, box-shadow 0.2s;
 
@@ -283,21 +283,21 @@ export interface DefectImageViewerData {
       }
     }
 
-    .picker-label { font-size: 1rem; font-weight: 700; color: #374151; }
+    .picker-label { font-size: 0.9rem; font-weight: 700; color: #374151; }
 
     .picker-chips {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px;
     }
 
     .picker-chip {
-      padding: 14px 10px;
-      border: 2.5px solid #e5e7eb; border-radius: 14px;
-      background: #f9fafb; font-size: 1rem; font-weight: 700; color: #374151;
+      padding: 8px 10px;
+      border: 2px solid #e5e7eb; border-radius: 10px;
+      background: #f9fafb; font-size: 0.85rem; font-weight: 700; color: #374151;
       cursor: pointer; transition: all 0.12s;
-      min-height: 58px; width: 100%; display: flex; align-items: center;
-      justify-content: center; text-align: center; line-height: 1.25;
+      height: 44px; width: 100%; display: flex; align-items: center;
+      justify-content: center; text-align: center; line-height: 1.2;
 
       &:hover { border-color: #5eead4; background: #f0fdfa; color: #0f766e; }
       &--selected {
@@ -310,10 +310,10 @@ export interface DefectImageViewerData {
     /* ── Confirm button ── */
     .confirm-btn {
       align-self: stretch;
-      min-height: 60px;
-      font-size: 1.1rem !important;
+      min-height: 48px;
+      font-size: 1rem !important;
       font-weight: 700 !important;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
       background-color: #16a34a !important;
       color: white !important;
       box-shadow: 0 4px 16px rgba(22,163,74,0.35) !important;
