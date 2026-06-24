@@ -74,4 +74,22 @@ public class InspectionRepository : IInspectionRepository
             .OrderBy(a => a.SectionIndex)
             .ToListAsync();
     }
+
+    public async Task<IReadOnlyList<DefectTypeCount>> GetDefectStatisticsAsync(DateTime? fromUtc, DateTime? toUtc)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var query = db.DefectAnnotations.AsQueryable();
+        if (fromUtc.HasValue)
+            query = query.Where(a => a.CreatedAt >= fromUtc.Value);
+        if (toUtc.HasValue)
+            query = query.Where(a => a.CreatedAt < toUtc.Value);
+
+        return await query
+            .GroupBy(a => a.DefectType)
+            .Select(g => new DefectTypeCount { DefectType = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync();
+    }
 }

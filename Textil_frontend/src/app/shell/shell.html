@@ -31,22 +31,40 @@
         <mat-icon>touch_app</mat-icon>
         <span>Operatore</span>
       </a>
-      <div class="nav-divider"></div>
-      <a class="nav-item" routerLink="/inspection" routerLinkActive="nav-item--active" (click)="closeSidebar()">
-        <mat-icon>camera_alt</mat-icon>
-        <span>Ispezione</span>
-      </a>
-      <a class="nav-item" routerLink="/configuration" routerLinkActive="nav-item--active" (click)="closeSidebar()">
-        <mat-icon>settings</mat-icon>
-        <span>Configurazione</span>
-      </a>
+
+      @if (auth.isAdmin()) {
+        <div class="nav-divider"></div>
+        <a class="nav-item" routerLink="/inspection" routerLinkActive="nav-item--active" (click)="closeSidebar()">
+          <mat-icon>camera_alt</mat-icon>
+          <span>Ispezione</span>
+        </a>
+        <a class="nav-item" routerLink="/dashboard" routerLinkActive="nav-item--active" (click)="closeSidebar()">
+          <mat-icon>bar_chart</mat-icon>
+          <span>Statistiche</span>
+        </a>
+        <a class="nav-item" routerLink="/configuration" routerLinkActive="nav-item--active" (click)="closeSidebar()">
+          <mat-icon>settings</mat-icon>
+          <span>Configurazione</span>
+        </a>
+        <a class="nav-item" routerLink="/users" routerLinkActive="nav-item--active" (click)="closeSidebar()">
+          <mat-icon>group</mat-icon>
+          <span>Utenti</span>
+        </a>
+      }
     </nav>
 
     <div class="sidebar-bottom">
-      <div class="nav-item">
-        <mat-icon>account_circle</mat-icon>
-        <span>Profilo</span>
+      <div class="user-box">
+        <mat-icon class="user-box__avatar">account_circle</mat-icon>
+        <div class="user-box__info">
+          <span class="user-box__name">{{ auth.user()?.displayName || auth.user()?.username }}</span>
+          <span class="user-box__role">{{ auth.isAdmin() ? 'Amministratore' : 'Operatore' }}</span>
+        </div>
       </div>
+      <button class="logout-btn" (click)="logout()">
+        <mat-icon>logout</mat-icon>
+        <span>Esci</span>
+      </button>
     </div>
   </aside>
 

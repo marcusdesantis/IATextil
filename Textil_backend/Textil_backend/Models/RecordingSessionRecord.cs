@@ -11,5 +11,10 @@ public class RecordingSessionRecord
     public long InitialFrameId { get; set; }
     public string Status { get; set; } = null!;
 
+    // Operator who started this recording session. Username is stored as a frozen
+    // snapshot so historical records stay accurate even if the user is later renamed/deleted.
+    public int? StartedByUserId { get; set; }
+    public string? StartedByUsername { get; set; }
+
     public ICollection<InspectionSnapshot> Snapshots { get; set; } = new List<InspectionSnapshot>();
 }

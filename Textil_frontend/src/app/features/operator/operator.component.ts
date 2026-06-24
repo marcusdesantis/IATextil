@@ -11,6 +11,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { InspectionService } from '../../core/services/inspection.service';
 import { CaptureConfigService } from '../../core/services/capture-config.service';
 import { CameraInfo, InspectionSnapshot } from '../../core/models/inspection.models';
+import { environment } from '../../../environments/environment';
 import { RulerPositionInfo } from '../inspection/capture-defect-dialog.component';
 import {
   DefectImageViewerComponent,
@@ -332,7 +333,7 @@ export class OperatorComponent implements OnInit, OnDestroy {
           this.errorMsg = 'Nessuna telecamera trovata. Verifica la connessione al backend.';
           return;
         }
-        this.camera = cameras[0];
+        this.camera = this.pickCamera(cameras);
         this.checkOrStart();
       },
       error: () => {
@@ -340,6 +341,45 @@ export class OperatorComponent implements OnInit, OnDestroy {
         this.errorMsg = 'Impossibile connettersi al sistema. Verifica il backend.';
       },
     });
+  }
+
+  /**
+   * Chooses which camera the operator screen drives, in priority order:
+   *  1. environment.preferredCameraId — exact or substring match on id/serial (lets us
+   *     pin the real camera, e.g. "DEV_000A47FFF510", at the client install).
+   *  2. The first real (non-simulator) camera.
+   *  3. The first camera available — keeps local dev with the Allied Vision simulators working.
+   * Avoids the previous fragile hard-coded `cameras[1]`, which broke if the enumeration order changed.
+   */
+  private pickCamera(cameras: CameraInfo[]): CameraInfo {
+    const preferred = environment.preferredCameraId?.trim();
+    if (preferred) {
+      const matches = cameras.filter(c =>
+        c.id === preferred || c.serial === preferred ||
+        c.id.includes(preferred) || c.serial.includes(preferred));
+      if (matches.length) return this.preferUsableTransport(matches);
+    }
+
+    const isSimulator = (c: CameraInfo) =>
+      /simulator/i.test(c.modelName) ||
+      /simulator/i.test(c.interfaceName) ||
+      /simulator/i.test(c.name);
+
+    const real = cameras.filter(c => !isSimulator(c));
+    if (real.length) return this.preferUsableTransport(real);
+
+    return cameras[0];
+  }
+
+  /**
+   * The real camera can enumerate twice — once on the working Chromasens GigE interface
+   * (e.g. "GigE_Front01") and once on an Intel NIC RDMA transport that can't open the device
+   * (GenTLUnspecified). Prefer the GigE front interface and avoid any RDMA twin.
+   */
+  private preferUsableTransport(cameras: CameraInfo[]): CameraInfo {
+    return cameras.find(c => /front|gige/i.test(c.interfaceName) && !/rdma/i.test(c.interfaceName))
+      ?? cameras.find(c => !/rdma/i.test(c.interfaceName))
+      ?? cameras[0];
   }
 
   private checkOrStart(): void {

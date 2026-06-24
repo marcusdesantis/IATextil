@@ -8,6 +8,7 @@ import {
   StopRecordingResponse,
   InspectionSnapshot,
   DefectAnnotation,
+  DefectStats,
 } from '../models/inspection.models';
 import { environment } from '../../../environments/environment';
 
@@ -37,6 +38,25 @@ export class InspectionService {
 
   getActiveSessions(): Observable<ActiveSession[]> {
     return this.http.get<ActiveSession[]>(`${this.baseUrl}/active-sessions`);
+  }
+
+  /**
+   * Fetches the stitched defect image as a Blob through HttpClient so the auth
+   * interceptor attaches the JWT (an <img src> can't send the Authorization header).
+   */
+  getSnapshotImage(snapshotId: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/snapshot-image/${snapshotId}`, { responseType: 'blob' });
+  }
+
+  /**
+   * Returns captured-defect counts grouped by defect type within a date range.
+   * Dates are formatted as 'yyyy-MM-dd' and treated as inclusive calendar days.
+   */
+  getDefectStats(from?: string, to?: string): Observable<DefectStats> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get<DefectStats>(`${this.baseUrl}/defect-stats`, { params });
   }
 
   startRecording(cameraId: string, machineState?: string, ringBufferSize?: number): Observable<StartRecordingResponse> {

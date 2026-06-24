@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -10,7 +10,6 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { InspectionSnapshot, DefectAnnotation } from '../../core/models/inspection.models';
 import { InspectionService } from '../../core/services/inspection.service';
-import { environment } from '../../../environments/environment';
 
 export interface DefectImageViewerData {
   snapshot: InspectionSnapshot;
@@ -57,13 +56,15 @@ export interface DefectImageViewerData {
               <span>Caricamento immagine…</span>
             </div>
           }
-          <img
-            [src]="imageUrl"
-            class="defect-image"
-            [class.defect-image--hidden]="loading"
-            alt="Immagine difetto"
-            (load)="onImageLoad()"
-            (error)="onImageError()" />
+          @if (imageUrl) {
+            <img
+              [src]="imageUrl"
+              class="defect-image"
+              [class.defect-image--hidden]="loading"
+              alt="Immagine difetto"
+              (load)="onImageLoad()"
+              (error)="onImageError()" />
+          }
 
           @if (!loading && !loadError) {
             <div class="sections-overlay">
@@ -333,10 +334,10 @@ export interface DefectImageViewerData {
     }
   `],
 })
-export class DefectImageViewerComponent implements OnInit {
+export class DefectImageViewerComponent implements OnInit, OnDestroy {
   get sectionCount(): number { return this.data.sectionCount; }
   get sections(): number[] { return Array.from({ length: this.data.sectionCount }, (_, i) => i + 1); }
-  readonly imageUrl: string;
+  imageUrl = '';
 
   loading = true;
   loadError = false;
@@ -347,24 +348,34 @@ export class DefectImageViewerComponent implements OnInit {
   selectedDefectType: string | null = null;
   annotations: DefectAnnotation[] = [];
 
-  private readonly _img = new Image();
+  private objectUrl: string | null = null;
 
   constructor(
     private dialogRef: MatDialogRef<DefectImageViewerComponent>,
     @Inject(MAT_DIALOG_DATA) public data: DefectImageViewerData,
     private inspectionService: InspectionService,
     private snackBar: MatSnackBar,
-  ) {
-    this.imageUrl = `${environment.apiBaseUrl}/api/inspection/snapshot-image/${data.snapshot.snapshotId}`;
-    this._img.onload = () => { this.loading = false; };
-    this._img.onerror = () => { this.loading = false; this.loadError = true; };
-    this._img.src = this.imageUrl;
-  }
+  ) {}
 
   ngOnInit(): void {
+    // Load the image through HttpClient so the auth interceptor attaches the JWT.
+    this.inspectionService.getSnapshotImage(this.data.snapshot.snapshotId).subscribe({
+      next: (blob) => {
+        this.objectUrl = URL.createObjectURL(blob);
+        this.imageUrl = this.objectUrl;
+      },
+      error: () => { this.loading = false; this.loadError = true; },
+    });
+
     this.inspectionService.getAnnotations(this.data.snapshot.snapshotId).subscribe({
       next: (ann) => (this.annotations = ann),
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.objectUrl) {
+      URL.revokeObjectURL(this.objectUrl);
+    }
   }
 
   onImageLoad(): void { this.loading = false; }

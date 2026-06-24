@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Textil_backend.Interfaces;
@@ -9,6 +11,7 @@ public record CreateAnnotationRequest(int SectionIndex, string? DefectType = nul
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class InspectionController : ControllerBase
 {
     private readonly IVimbaCameraService _vimbaCameraService;
@@ -63,6 +66,35 @@ public class InspectionController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Returns the count of captured (classified) defects grouped by defect type
+    /// within an optional date range. 'from' and 'to' are exact instants
+    /// (ISO-8601 with offset): the caller sends the start of the first local day
+    /// and the start of the day after the last local day, so the range honours the
+    /// client's time zone. The window is treated as [from, to).
+    /// </summary>
+    [HttpGet("defect-stats")]
+    public async Task<IActionResult> GetDefectStats([FromQuery] DateTimeOffset? from = null, [FromQuery] DateTimeOffset? to = null)
+    {
+        // Convert to UTC DateTime (Kind=Utc) — required by Npgsql for 'timestamp with time zone'.
+        var fromUtc = from?.UtcDateTime;
+        var toUtc = to?.UtcDateTime;
+
+        var stats = await _repository.GetDefectStatisticsAsync(fromUtc, toUtc);
+
+        return Ok(new
+        {
+            from = fromUtc,
+            to = toUtc,
+            total = stats.Sum(s => s.Count),
+            byType = stats.Select(s => new
+            {
+                defectType = s.DefectType,
+                count = s.Count,
+            }),
+        });
+    }
+
     [HttpGet("cameras")]
     public IActionResult GetCameras()
     {
@@ -82,7 +114,10 @@ public class InspectionController : ControllerBase
     {
         try
         {
-            var folder = await _vimbaCameraService.StartRecordingAsync(cameraId, machineState, ringBufferSize);
+            int? userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : null;
+            var username = User.FindFirstValue(ClaimTypes.Name);
+
+            var folder = await _vimbaCameraService.StartRecordingAsync(cameraId, machineState, ringBufferSize, userId, username);
             return Ok(new
             {
                 Message = "Recording started",

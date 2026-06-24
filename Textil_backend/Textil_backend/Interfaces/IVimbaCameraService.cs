@@ -6,7 +6,7 @@ public interface IVimbaCameraService
 {
     IReadOnlyList<CameraInfoDto> GetCameras();
     IReadOnlyList<object> GetActiveSessions();
-    Task<string> StartRecordingAsync(string cameraId, string? machineState = null, int? ringBufferSize = null, CancellationToken cancellationToken = default);
+    Task<string> StartRecordingAsync(string cameraId, string? machineState = null, int? ringBufferSize = null, int? startedByUserId = null, string? startedByUsername = null, CancellationToken cancellationToken = default);
     Task StopRecordingAsync(string cameraId);
     Task<InspectionSnapshot> CaptureSnapshotAsync(string cameraId, string? machineState = null, string? notes = null, CancellationToken cancellationToken = default);
 

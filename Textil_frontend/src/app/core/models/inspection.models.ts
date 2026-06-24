@@ -39,6 +39,18 @@ export interface DefectAnnotation {
   createdAt: string;
 }
 
+export interface DefectTypeCount {
+  defectType: string | null;
+  count: number;
+}
+
+export interface DefectStats {
+  from: string | null;
+  to: string | null;
+  total: number;
+  byType: DefectTypeCount[];
+}
+
 export interface InspectionSnapshot {
   snapshotId: number;
   recordingId: number | null;

@@ -1,8 +1,10 @@
-import { Component } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { CommonModule } from '@angular/common';
+
+import { AuthService } from '../core/services/auth.service';
 
 @Component({
   selector: 'app-shell',
@@ -13,6 +15,8 @@ import { CommonModule } from '@angular/common';
 })
 export class Shell {
   sidebarOpen = false;
+  private router = inject(Router);
+  protected auth = inject(AuthService);
 
   toggleSidebar() {
     this.sidebarOpen = !this.sidebarOpen;
@@ -20,5 +24,10 @@ export class Shell {
 
   closeSidebar() {
     this.sidebarOpen = false;
+  }
+
+  logout() {
+    this.auth.logout();
+    this.router.navigate(['/login']);
   }
 }

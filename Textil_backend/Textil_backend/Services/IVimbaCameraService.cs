@@ -18,6 +18,10 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
     private static readonly ConcurrentDictionary<string, ActiveRecordingSession> _sessions =
         new(StringComparer.OrdinalIgnoreCase);
 
+    // One gate per camera so concurrent start-recording requests can't open the same camera in parallel.
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _startGates =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public VimbaCameraService(
         IImageProcessingService imageProcessor,
         IStorageService storage,
@@ -63,10 +67,30 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         }).ToList();
     }
 
-    public async Task<string> StartRecordingAsync(string cameraId, string? machineState = null, int? ringBufferSize = null, CancellationToken ct = default)
+    public async Task<string> StartRecordingAsync(string cameraId, string? machineState = null, int? ringBufferSize = null, int? startedByUserId = null, string? startedByUsername = null, CancellationToken ct = default)
     {
         var settings = _fabricSettings.CurrentValue;
         var normalizedId = cameraId.Trim();
+
+        // Serialize start attempts PER CAMERA. The frontend can fire start-recording more than once
+        // (double-click / re-render). Two concurrent starts would open the same camera in parallel —
+        // one then fails with VmbErrorAlready while queueing frames, the other with AcquisitionStart
+        // InternalFault, and the orphaned acquisition can crash the process on finalize.
+        var gate = _startGates.GetOrAdd(normalizedId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
+            return await StartRecordingCoreAsync(normalizedId, settings, machineState, ringBufferSize, startedByUserId, startedByUsername, ct);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<string> StartRecordingCoreAsync(string normalizedId, FabricSettings settings,
+        string? machineState, int? ringBufferSize, int? startedByUserId, string? startedByUsername, CancellationToken ct)
+    {
         if (_sessions.ContainsKey(normalizedId))
             throw new InvalidOperationException($"Camera {normalizedId} is already recording.");
 
@@ -80,10 +104,38 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
             SessionName = $"{machineState ?? "Manual"}_{camera.Id}_{startedAt:yyyyMMdd_HHmmss}",
             FilePath = folder,
             StartTime = startedAt,
-            Status = "Active"
+            Status = "Active",
+            StartedByUserId = startedByUserId,
+            StartedByUsername = startedByUsername
         });
 
-        var openCamera = camera.Open();
+        IOpenCamera openCamera;
+        try
+        {
+            openCamera = camera.Open();
+        }
+        catch (Exception ex)
+        {
+            await MarkSessionFailed(recordingId);
+            throw new InvalidOperationException($"Failed to open camera {camera.Id}: {ex.Message}", ex);
+        }
+
+        if (openCamera is null)
+        {
+            await MarkSessionFailed(recordingId);
+            throw new InvalidOperationException(
+                $"Camera {camera.Id} could not be opened (the transport layer returned no handle). " +
+                "Check that the camera is reachable and not claimed by another transport (e.g. RDMA).");
+        }
+
+        ConfigureCamera(openCamera, camera.ModelName);
+
+        // GigE Vision packet-size negotiation + diagnostics. On 10GigE cameras the viewer
+        // auto-negotiates the largest packet the NIC path supports; skipping it can make
+        // AcquisitionStart fault with InternalFault. Log the valid range so we see what's accepted.
+        LogPacketSizeRange(openCamera, camera.ModelName);
+        AdjustStreamPacketSize(openCamera, camera.ModelName);
+
         var session = new ActiveRecordingSession
         {
             CameraId = camera.Id,
@@ -134,10 +186,44 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
             }
         };
 
-        session.Acquisition = openCamera.StartFrameAcquisition();
+        try
+        {
+            session.Acquisition = openCamera.StartFrameAcquisition(
+                VmbNET.ICapturingModule.AllocationModeValue.AllocAndAnnounceFrame, 10);
+        }
+        catch (Exception ex)
+        {
+            // Acquisition failed to start (e.g. AcquisitionStart InternalFault). VmbNET leaves a
+            // half-constructed Acquisition object behind; its finalizer later runs CaptureEnd and,
+            // once the camera is disposed, crashes the whole process with an unhandled BadHandle.
+            // Force that orphan to finalize NOW, while the stream handle is still valid, THEN dispose.
+            _logger.LogError(ex, "Failed to start frame acquisition for camera {Id}; releasing camera", camera.Id);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            try { openCamera.Dispose(); } catch { /* best effort */ }
+            await MarkSessionFailed(recordingId);
+            throw;
+        }
+
         _sessions.TryAdd(normalizedId, session);
 
         return folder;
+    }
+
+    private async Task MarkSessionFailed(int recordingId)
+    {
+        try
+        {
+            await _repository.UpdateRecordingSessionAsync(recordingId, r =>
+            {
+                r.EndTime = DateTime.UtcNow;
+                r.Status = "Failed";
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not mark recording session {RecordingId} as failed", recordingId);
+        }
     }
 
     public async Task StopRecordingAsync(string cameraId)
@@ -166,7 +252,8 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         {
             // Resume: restart Vimba frame acquisition (simulates encoder pulses resuming)
             try { session.Acquisition?.Dispose(); } catch { }
-            session.Acquisition = session.OpenCamera.StartFrameAcquisition();
+            session.Acquisition = session.OpenCamera.StartFrameAcquisition(
+                VmbNET.ICapturingModule.AllocationModeValue.AllocAndAnnounceFrame, 10);
             _logger.LogInformation("Camera {CameraId} acquisition resumed", cameraId);
         }
         else
@@ -322,14 +409,75 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         return snapshot;
     }
 
+    private void ConfigureCamera(IOpenCamera openCamera, string modelName)
+    {
+        // EXPERIMENT: do NOT touch any feature. The camera streams in the viewer with its own saved
+        // configuration; forcing AcquisitionMode/TriggerMode may be what breaks AcquisitionStart on
+        // this line-scan sensor (TriggerMode=Off can disable the line trigger it needs). Start with
+        // exactly the config the viewer uses. If this works, we re-introduce only what's strictly needed.
+        _ = openCamera; // keep the camera handle referenced; intentionally not configuring features
+        _logger.LogInformation("Camera {Model}: leaving saved configuration untouched (no feature overrides)", modelName);
+    }
+
+    private void TrySetFeature(string modelName, string featureName, Action set)
+    {
+        try
+        {
+            set();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Feature {Feature} not applied on {Model}: {Reason}. Keeping camera default.",
+                featureName, modelName, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Negotiates the GVSP packet size on the STREAM module (not the remote device), mirroring what
+    /// the Vimba/CGT viewer does. Without this, 10GigE cameras commonly fault AcquisitionStart.
+    /// Best-effort and resilient to the exact command name varying per transport layer.
+    /// </summary>
+    private void AdjustStreamPacketSize(IOpenCamera openCamera, string modelName)
+    {
+        try
+        {
+            dynamic streamFeatures = openCamera.Stream.Features;
+            // GVSPAdjustPacketSize is a command feature; invoked as a method via the dynamic dictionary.
+            TrySetFeature(modelName, "GVSPAdjustPacketSize (stream)", () => streamFeatures.GVSPAdjustPacketSize());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not adjust stream packet size on {Model}", modelName);
+        }
+    }
+
+    /// <summary>
+    /// Reads and logs the GevSCPSPacketSize feature range (value/min/max) from the device, so we can
+    /// see what packet sizes this 10GigE camera actually accepts. Diagnostics only, best-effort.
+    /// </summary>
+    private void LogPacketSizeRange(IOpenCamera openCamera, string modelName)
+    {
+        try
+        {
+            dynamic features = openCamera.Features;
+            dynamic pkt = features["GevSCPSPacketSize"];
+            _logger.LogInformation("[{Model}] GevSCPSPacketSize: value={Value}, min={Min}, max={Max}",
+                modelName, (long)pkt.Value, (long)pkt.Minimum, (long)pkt.Maximum);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("[{Model}] Could not read GevSCPSPacketSize range: {Reason}", modelName, ex.Message);
+        }
+    }
+
     private ICamera ResolveCamera(string cameraId)
     {
         try { return _vmbSystem.GetCameraByID(cameraId); }
         catch
         {
             return _vmbSystem.GetCameras().FirstOrDefault(c =>
-                c.Id.Contains(cameraId, StringComparison.OrdinalIgnoreCase) ||
-                c.Serial.Contains(cameraId, StringComparison.OrdinalIgnoreCase))
+                (c.Id?.Contains(cameraId, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (c.Serial?.Contains(cameraId, StringComparison.OrdinalIgnoreCase) ?? false))
                 ?? throw new InvalidOperationException($"Camera {cameraId} not found.");
         }
     }

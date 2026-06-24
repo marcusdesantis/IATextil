@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<InspectionSnapshot> InspectionSnapshots => Set<InspectionSnapshot>();
     public DbSet<RecordingSessionRecord> RecordingSessions => Set<RecordingSessionRecord>();
     public DbSet<DefectAnnotation> DefectAnnotations => Set<DefectAnnotation>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +74,24 @@ public class AppDbContext : DbContext
             entity.Property(x => x.TotalFrames).HasColumnName("totalframes").HasDefaultValue(0L);
             entity.Property(x => x.InitialFrameId).HasColumnName("initialframeid");
             entity.Property(x => x.Status).HasColumnName("status").HasMaxLength(50).IsRequired();
+            entity.Property(x => x.StartedByUserId).HasColumnName("startedbyuserid");
+            entity.Property(x => x.StartedByUsername).HasColumnName("startedbyusername").HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.ToTable("users");
+            entity.HasKey(x => x.UserId);
+
+            entity.Property(x => x.UserId).HasColumnName("userid");
+            entity.Property(x => x.Username).HasColumnName("username").HasMaxLength(100).IsRequired();
+            entity.Property(x => x.PasswordHash).HasColumnName("passwordhash").HasMaxLength(255).IsRequired();
+            entity.Property(x => x.Role).HasColumnName("role").HasMaxLength(50).IsRequired();
+            entity.Property(x => x.DisplayName).HasColumnName("displayname").HasMaxLength(150);
+            entity.Property(x => x.IsActive).HasColumnName("isactive").HasDefaultValue(true);
+            entity.Property(x => x.CreatedAt).HasColumnName("createdat").HasColumnType("timestamp with time zone");
+
+            entity.HasIndex(x => x.Username).IsUnique().HasDatabaseName("ix_users_username");
         });
     }
 }
