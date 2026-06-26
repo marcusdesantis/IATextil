@@ -61,6 +61,23 @@ public class FabricSettings
     /// </summary>
     public double CmPerFrame { get; set; } = 0.4;
 
+    // ---- Camera transport ----
+
+    /// <summary>
+    /// When true, the backend runs GVSPAdjustPacketSize on start, which renegotiates (overwrites)
+    /// the camera's GevSCPSPacketSize. Default false: inherit the configuration the technician saved
+    /// on the camera and send no parameters. Only enable if the 10GigE camera faults on AcquisitionStart
+    /// without packet-size negotiation.
+    /// </summary>
+    public bool AdjustCameraPacketSize { get; set; } = false;
+
+    /// <summary>
+    /// TEST ONLY. When true, every COMPLETE frame received is written to disk (.bin + .png) in the
+    /// session capture folder, for diagnostics. VERY heavy — each frame is ~33 MB and the disk fills
+    /// fast. Use only for short tests, then set back to false.
+    /// </summary>
+    public bool SaveAllFrames { get; set; } = false;
+
     // ---- Derived helpers (not stored in appsettings) ----
 
     /// <summary>

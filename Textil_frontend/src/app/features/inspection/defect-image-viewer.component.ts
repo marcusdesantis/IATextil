@@ -136,26 +136,28 @@ export interface DefectImageViewerData {
           </div>
         }
 
-        <!-- Confirm button -->
-        @if (!loading && !loadError && selectedSection !== null && selectedDefectType) {
-          <button mat-raised-button class="confirm-btn"
-            [disabled]="savingAnnotation"
-            (click)="saveAnnotation()">
-            <mat-icon>{{ savingAnnotation ? 'hourglass_empty' : 'save' }}</mat-icon>
-            {{ savingAnnotation ? 'Salvataggio…' : 'Conferma — Segna come ' + selectedDefectType }}
-          </button>
-        }
-
       </div>
     </mat-dialog-content>
 
-    <!-- Footer -->
+    <!-- Footer (always visible — not affected by the image height/scroll) -->
     <mat-dialog-actions class="dialog-actions">
-      <span class="spacer"></span>
       <button mat-stroked-button (click)="close()">Chiudi</button>
+      <span class="spacer"></span>
+      @if (!loading && !loadError && selectedSection !== null && selectedDefectType) {
+        <button mat-raised-button class="confirm-btn"
+          [disabled]="savingAnnotation"
+          (click)="saveAnnotation()">
+          <mat-icon>{{ savingAnnotation ? 'hourglass_empty' : 'save' }}</mat-icon>
+          {{ savingAnnotation ? 'Salvataggio…' : 'Conferma — Segna come ' + selectedDefectType }}
+        </button>
+      }
     </mat-dialog-actions>
   `,
   styles: [`
+    /* Fill the (tall) dialog so the image area gets the full available height.
+       flex:1 makes the component fill the flex-column dialog surface; the footer then pins. */
+    :host { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; max-height: 100%; overflow: hidden; }
+
     /* ── Header ── */
     .dialog-header {
       display: flex; align-items: center; gap: 12px;
@@ -173,8 +175,11 @@ export interface DefectImageViewerData {
     .dialog-header__sub { font-size: 0.78rem; opacity: 0.85; }
     .dialog-close-btn { color: white !important; opacity: 0.8; flex-shrink: 0; &:hover { opacity: 1; } }
 
-    /* ── Content ── */
-    .dialog-content { padding: 0 !important; display: flex; flex-direction: column; }
+    /* ── Content (scrollable, fills the available height) ── */
+    .dialog-content {
+      padding: 0 !important; display: flex; flex-direction: column;
+      flex: 1 1 auto; overflow: auto; min-height: 0; max-height: none !important;
+    }
 
     /* ── Overview ── */
     .overview-wrapper { display: flex; flex-direction: column; padding: 12px; gap: 10px; }
@@ -183,6 +188,11 @@ export interface DefectImageViewerData {
       position: relative; line-height: 0; border-radius: 10px;
       overflow: hidden; border: 1px solid #e5e7eb; background: #111;
       min-height: 80px;
+      /* Wrap tightly around the actual image so the zone overlay sits exactly on the
+         image columns (no letterbox bars), matching what the backend crops per zone. */
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 auto;
     }
 
     .image-loading {
@@ -193,8 +203,10 @@ export interface DefectImageViewerData {
     }
 
     .defect-image {
-      width: 100%; height: auto; display: block;
-      max-height: 45vh; object-fit: contain; background: #000;
+      display: block;
+      width: auto; height: auto;
+      max-width: 100%; max-height: 48vh;
+      background: #000;
       &--hidden { visibility: hidden; }
     }
 
@@ -308,10 +320,10 @@ export interface DefectImageViewerData {
       }
     }
 
-    /* ── Confirm button ── */
+    /* ── Confirm button (lives in the footer, always visible) ── */
     .confirm-btn {
-      align-self: stretch;
       min-height: 48px;
+      padding: 0 22px !important;
       font-size: 1rem !important;
       font-weight: 700 !important;
       display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -322,12 +334,18 @@ export interface DefectImageViewerData {
       mat-icon { font-size: 22px; width: 22px; height: 22px; }
     }
 
-    /* ── Footer ── */
+    /* ── Footer: fixed below the scrollable content, so it's always visible ── */
     .dialog-actions {
       padding: 10px 20px 14px !important; border-top: 1px solid #f3f4f6;
-      display: flex; align-items: center; gap: 8px;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      flex-shrink: 0;  /* never shrink/scroll away — always visible at the bottom */
     }
     .spacer { flex: 1; }
+
+    /* On narrow screens (tablet) let the confirm button take the full width below Chiudi */
+    @media (max-width: 640px) {
+      .confirm-btn { flex: 1 1 100%; order: -1; }
+    }
     .reselect-btn {
       font-size: 0.88rem !important;
       mat-icon { font-size: 16px; width: 16px; height: 16px; }

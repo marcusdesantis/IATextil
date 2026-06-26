@@ -18,11 +18,14 @@ public class ImageProcessingService : IImageProcessingService
 
     public byte[] ExtractFrameBytes(IFrame frame)
     {
-        if (frame.Buffer == IntPtr.Zero || frame.BufferSize == 0)
+        // VmbNET exposes two pointers: Buffer (raw buffer start) and ImageData (image start =
+        // Buffer + chunk size). Prefer the actual image data; fall back to the raw buffer.
+        var ptr = frame.ImageData != IntPtr.Zero ? frame.ImageData : frame.Buffer;
+        if (ptr == IntPtr.Zero || frame.BufferSize == 0)
             return Array.Empty<byte>();
 
         var bytes = new byte[checked((int)frame.BufferSize)];
-        Marshal.Copy(frame.Buffer, bytes, 0, bytes.Length);
+        Marshal.Copy(ptr, bytes, 0, bytes.Length);
         return bytes;
     }
 
@@ -40,6 +43,12 @@ public class ImageProcessingService : IImageProcessingService
             {
                 using var bitmap = CreateBitmap(bytes, width, height, pixelFormat);
                 if (bitmap == null) return;
+
+                // The line-scan image comes in tall/portrait (width = across the fabric, height = along
+                // travel). Rotate 90° so the long axis (travel) is horizontal — easier to view and the
+                // zone bands become wider. The crop divides the rotated image's height (= fabric width).
+                // To flip the rotation direction, use Rotate270FlipNone instead.
+                bitmap.RotateFlip(RotateFlipType.Rotate90FlipNone);
 
                 bitmap.Save(pngFullPath, ImageFormat.Png);
             }, cancellationToken);
@@ -108,16 +117,27 @@ public class ImageProcessingService : IImageProcessingService
         {
             var stride = data.Stride;
             var dstBytes = new byte[stride * bitmap.Height];
-            var srcIndex = 0;
+            var w = bitmap.Width;
 
             for (var y = 0; y < bitmap.Height; y++)
             {
                 var rowIndex = y * stride;
-                for (var x = 0; x < bitmap.Width; x++)
+                for (var x = 0; x < w; x++)
                 {
-                    var c1 = bytes[srcIndex++];
-                    var c2 = bytes[srcIndex++];
-                    var c3 = bytes[srcIndex++];
+                    // Compute source index per pixel so a short/partial buffer can't overrun:
+                    // packed RGB source has 3 bytes per pixel, no row padding.
+                    var srcIndex = (y * w + x) * 3;
+                    if (srcIndex + 2 >= bytes.Length)
+                    {
+                        // Source ran out (incomplete frame) — leave the rest of the image black
+                        // instead of throwing, so we still produce a (partial) PNG.
+                        Marshal.Copy(dstBytes, 0, data.Scan0, dstBytes.Length);
+                        return bitmap;
+                    }
+
+                    var c1 = bytes[srcIndex];
+                    var c2 = bytes[srcIndex + 1];
+                    var c3 = bytes[srcIndex + 2];
                     var pixelIndex = rowIndex + (x * 3);
 
                     if (isBgr)
@@ -175,8 +195,9 @@ public class ImageProcessingService : IImageProcessingService
     }
 
     /// <summary>
-    /// Crops a 1/totalSections horizontal band from a PNG on disk and saves the result
-    /// as {baseName}_s{sectionIndex}.png in the same directory.
+    /// Crops zone {sectionIndex} of {totalSections} from the (rotated, landscape) PNG on disk and
+    /// saves it as {baseName}_s{sectionIndex}.png in the same directory. Zones are VERTICAL columns
+    /// selected left→right (split by width), matching the on-screen left-to-right zone selection.
     /// Returns the absolute path of the saved crop.
     /// </summary>
     public async Task<string> CropPngSectionAsync(

@@ -237,6 +237,7 @@ export class InspectionComponent implements OnInit, OnDestroy {
       data: { snapshot, sectionCount: this.cfg.imageSectionCount, defectTypes: this.cfg.defectTypes } satisfies DefectImageViewerData,
       width: '1000px',
       maxWidth: '98vw',
+      maxHeight: '96vh',
       disableClose: false,
     });
   }

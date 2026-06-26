@@ -130,11 +130,15 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
 
         ConfigureCamera(openCamera, camera.ModelName);
 
-        // GigE Vision packet-size negotiation + diagnostics. On 10GigE cameras the viewer
-        // auto-negotiates the largest packet the NIC path supports; skipping it can make
-        // AcquisitionStart fault with InternalFault. Log the valid range so we see what's accepted.
+        // GigE Vision packet-size negotiation — REQUIRED, and exactly what the Vimba X Viewer does on
+        // connect. The camera advertises GevSCPSPacketSize=1456 (its minimum), far too small for the
+        // 34 MB frames → severe packet loss → incomplete (0-byte) frames. This call negotiates the
+        // largest packet the NIC path supports. It is the standard GigE stream handshake, NOT a camera
+        // feature override (exposure/gain/trigger are still left untouched). Without it, frames arrive
+        // empty. This is how it worked before; do not gate it off.
         LogPacketSizeRange(openCamera, camera.ModelName);
         AdjustStreamPacketSize(openCamera, camera.ModelName);
+        LogPacketSizeRange(openCamera, camera.ModelName); // show the negotiated value (should be > 1456)
 
         var session = new ActiveRecordingSession
         {
@@ -155,6 +159,27 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
                 if (!session.IsRecording) return;
 
                 var bytes = _imageProcessor.ExtractFrameBytes(frame);
+
+                // Drop incomplete frames. On 10GigE a too-small GevSCPSPacketSize (here 1456) causes
+                // packet loss / incomplete delivery: the frame's Buffer comes back null even though
+                // BufferSize is announced, so ExtractFrameBytes returns fewer bytes than the full image.
+                // Storing those produced 0-byte snapshots. Only buffer frames that carry full pixel data.
+                var expectedBytes = (long)frame.Width * frame.Height * BytesPerPixel(frame.PixelFormat);
+                if (bytes.Length == 0 || bytes.Length < expectedBytes)
+                {
+                    _logger.LogWarning(
+                        "Dropping INCOMPLETE frame {FrameId}: got {Got}, expected {Expected} (announced={Announced}). " +
+                        "FrameStatus={Status}, Buffer=0x{Buf:X}, ImageData=0x{Img:X}.",
+                        frame.Id, bytes.Length, expectedBytes, frame.BufferSize,
+                        frame.FrameStatus, frame.Buffer.ToInt64(), frame.ImageData.ToInt64());
+
+                    // Once, after a few frames, dump the stream packet statistics so we can see whether
+                    // packets are being LOST (transport/filter-driver issue) or not arriving at all.
+                    if ((long)frame.Id == 8)
+                        LogStreamStatistics(openCamera, camera.ModelName);
+                    return;
+                }
+
                 session.AddFrame(new FrameEntry
                 {
                     FrameId = (long)frame.Id,
@@ -165,20 +190,26 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
                     TimestampUtc = DateTime.UtcNow
                 });
                 _logger.LogInformation(
-                    "Frame {FrameId}: {Width}x{Height}, format={PixelFormat}, size={SizeBytes} bytes ({SizeKb:F2} KB, {SizeMb:F2} MB)",
+                    "Frame {FrameId}: {Width}x{Height}, format={PixelFormat}, bytes={ActualBytes} ({SizeMb:F2} MB) [OK]",
                     frame.Id,
                     frame.Width,
                     frame.Height,
                     frame.PixelFormat,
-                    frame.BufferSize,
-                    frame.BufferSize / 1024.0,
-                    frame.BufferSize / (1024.0 * 1024.0)
+                    bytes.Length,
+                    bytes.Length / (1024.0 * 1024.0)
                 );
 
-
-                // Uncomment to save every frame to disk during recording:
-                // var fullPath = Path.Combine(folder, _storage.GenerateFileName("frame", (long)frame.Id));
-                // await File.WriteAllBytesAsync(fullPath, bytes);
+                // TEST ONLY (FabricSimulation.SaveAllFrames=true): dump every complete frame to disk
+                // as .bin + .png so we can verify in real time that incoming frames carry real pixel
+                // data. Very heavy (~33 MB/frame) — keep off in normal operation.
+                if (_fabricSettings.CurrentValue.SaveAllFrames)
+                {
+                    var framePath = Path.Combine(folder, _storage.GenerateFileName("frame", (long)frame.Id, ".bin"));
+                    await File.WriteAllBytesAsync(framePath, bytes);
+                    await _imageProcessor.TryWritePngAsync(
+                        Path.ChangeExtension(framePath, ".png"),
+                        bytes, frame.Width, frame.Height, frame.PixelFormat, CancellationToken.None);
+                }
             }
             catch (Exception ex)
             {
@@ -289,7 +320,10 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
 
         var buffer = session.GetBufferSnapshot();
         if (buffer.Length == 0)
-            throw new InvalidOperationException("Ring buffer is empty. No frames captured yet.");
+            throw new InvalidOperationException(
+                "Ring buffer is empty — no COMPLETE frames were stored. In encoder mode each frame needs " +
+                "~4096 triggered lines, so keep the fabric moving steadily for a few seconds before capturing. " +
+                "If the log shows 'Dropping INCOMPLETE frame', the frames are arriving without pixel data.");
 
         var settings = _fabricSettings.CurrentValue;
 
@@ -320,32 +354,25 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
 
         // Priority: explicit offsetFrames > ruler-derived > default
         var offset = offsetFrames ?? rulerDerivedOffset ?? settings.DefaultOffsetFrames;
-        var count = frameCount ?? settings.DefaultFrameCount;
 
-        // Center index in the buffer: buffer_end - offset
+        // Center index in the buffer: buffer_end - offset → which frame to show.
         var centerIdx = buffer.Length - 1 - offset;
         centerIdx = Math.Clamp(centerIdx, 0, buffer.Length - 1);
 
-        // frameCount = frames on each side of center → total = 2*frameCount + 1
-        var startIdx = Math.Max(0, centerIdx - count);
-        var endIdx = Math.Min(buffer.Length - 1, centerIdx + count);
-
-        var selectedFrames = buffer[startIdx..(endIdx + 1)];
-
-        if (selectedFrames.Length == 0)
-            throw new InvalidOperationException($"Not enough frames in buffer. Buffer has {buffer.Length} frames but offset requested {offset}.");
-
-        _logger.LogInformation(
-            "Defect capture: buffer={Total}, offset={Offset}, center={Center}, selected={Selected} frames",
-            buffer.Length, offset, centerIdx, selectedFrames.Length);
-
-        // Use dimensions from the center frame
         var refFrame = buffer[centerIdx];
-        var stitched = _imageProcessor.StitchFrames(selectedFrames, refFrame.Width, refFrame.Height, refFrame.PixelFormat);
+
+        // The camera delivers each frame as a FULL 2D image (it assembles thousands of scan
+        // lines internally), so we show the whole center frame. The legacy StitchFrames sampled
+        // only one line per frame — correct for true 1-line line-scan, but it produced an unusable
+        // thin strip with the current full-frame configuration. (StitchFrames is kept for that mode.)
+        _ = frameCount; // not used in full-frame mode; kept for API/back-compat
+        _logger.LogInformation(
+            "Defect capture: buffer={Total}, offset={Offset}, center={Center}, frame={Width}x{Height}",
+            buffer.Length, offset, centerIdx, refFrame.Width, refFrame.Height);
 
         return await SaveAndRecordSnapshot(
-            session.CameraId, stitched, refFrame.FrameId,
-            refFrame.Width, (uint)selectedFrames.Length,
+            session.CameraId, refFrame.Bytes, refFrame.FrameId,
+            refFrame.Width, refFrame.Height,
             refFrame.PixelFormat, session.RecordingId,
             machineState ?? "DefectCapture", notes,
             null, rulerPosition, rulerDerivedOffset ?? offset, ct);
@@ -419,6 +446,43 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         _logger.LogInformation("Camera {Model}: leaving saved configuration untouched (no feature overrides)", modelName);
     }
 
+    /// <summary>
+    /// Best-effort dump of the GigE stream packet statistics, so we can tell whether packets are
+    /// being LOST in reception (transport/Filter-Driver issue) or simply not arriving. Diagnostics only.
+    /// </summary>
+    private void LogStreamStatistics(IOpenCamera openCamera, string modelName)
+    {
+        try
+        {
+            dynamic sf = openCamera.Stream.Features;
+            foreach (var name in new[]
+            {
+                "StatFrameDelivered", "StatFrameDropped", "StatFrameUnderrun", "StatFrameShoved",
+                "StatPacketReceived", "StatPacketMissed", "StatPacketErrors", "StatPacketRequested", "StatPacketResent"
+            })
+            {
+                try
+                {
+                    dynamic f = sf[name];
+                    _logger.LogWarning("[{Model}] STREAM STAT {Name} = {Value}", modelName, name, (object)f.Value);
+                }
+                catch { /* feature not present on this transport — skip */ }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read stream statistics on {Model}", modelName);
+        }
+    }
+
+    private static int BytesPerPixel(IFrame.PixelFormatValue fmt) => fmt switch
+    {
+        IFrame.PixelFormatValue.Mono8 => 1,
+        IFrame.PixelFormatValue.BGR8 or IFrame.PixelFormatValue.RGB8 => 3,
+        IFrame.PixelFormatValue.BGRa8 or IFrame.PixelFormatValue.RGBa8 => 4,
+        _ => 3
+    };
+
     private void TrySetFeature(string modelName, string featureName, Action set)
     {
         try
@@ -439,15 +503,23 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
     /// </summary>
     private void AdjustStreamPacketSize(IOpenCamera openCamera, string modelName)
     {
+        // The GVSPAdjustPacketSize negotiation stays stuck at 1456 over our transport, yet the Vimba
+        // Viewer/GCT stream fine on the SAME NIC + camera — so the path clearly supports big packets.
+        // So we do what the viewer effectively does: SET GevSCPSPacketSize directly to its maximum,
+        // so a 34 MB frame arrives in few enough packets to complete (no loss). This is a transport
+        // setting (stream packet size), not an image-feature override (exposure/gain/trigger untouched).
         try
         {
-            dynamic streamFeatures = openCamera.Stream.Features;
-            // GVSPAdjustPacketSize is a command feature; invoked as a method via the dynamic dictionary.
-            TrySetFeature(modelName, "GVSPAdjustPacketSize (stream)", () => streamFeatures.GVSPAdjustPacketSize());
+            dynamic features = openCamera.Features;
+            dynamic pkt = features["GevSCPSPacketSize"];
+            long max = (long)pkt.Maximum;
+            _logger.LogInformation("[{Model}] Setting GevSCPSPacketSize to its maximum {Max} (was {Cur})...",
+                modelName, max, (long)pkt.Value);
+            TrySetFeature(modelName, $"GevSCPSPacketSize:={max}", () => { pkt.Value = max; });
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not adjust stream packet size on {Model}", modelName);
+            _logger.LogWarning(ex, "Could not set GevSCPSPacketSize on {Model}", modelName);
         }
     }
 
