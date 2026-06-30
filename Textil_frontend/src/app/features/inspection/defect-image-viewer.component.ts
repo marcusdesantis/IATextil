@@ -1,4 +1,4 @@
-import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -48,47 +48,50 @@ export interface DefectImageViewerData {
     <mat-dialog-content class="dialog-content">
       <div class="overview-wrapper">
 
-        <!-- Image with zone overlay -->
-        <div class="image-container">
-          @if (loading) {
-            <div class="image-loading">
-              <mat-spinner diameter="36" />
-              <span>Caricamento immagine…</span>
-            </div>
-          }
-          @if (imageUrl) {
-            <img
-              [src]="imageUrl"
-              class="defect-image"
-              [class.defect-image--hidden]="loading"
-              alt="Immagine difetto"
-              (load)="onImageLoad()"
-              (error)="onImageError()" />
-          }
+        <!-- STEP 1 — pick a zone on the full image -->
+        @if (selectedSection === null) {
+          <div class="image-container" [class.image-container--fill]="stretchOverview">
+            @if (loading) {
+              <div class="image-loading">
+                <mat-spinner diameter="36" />
+                <span>Caricamento immagine…</span>
+              </div>
+            }
+            @if (imageUrl) {
+              <img
+                [src]="imageUrl"
+                class="defect-image"
+                [class.defect-image--hidden]="loading"
+                alt="Immagine difetto"
+                (load)="onImageLoad($event)"
+                (error)="onImageError()" />
+            }
+
+            @if (!loading && !loadError) {
+              <div class="sections-overlay" #zonesOverlay>
+                @for (sec of sections; track sec) {
+                  <div
+                    class="section-band"
+                    [class.section-band--annotated]="isAnnotated(sec)"
+                    (click)="onZoneTap(sec)">
+                    @if (isAnnotated(sec)) {
+                      <mat-icon class="annotated-icon">check_circle</mat-icon>
+                    } @else {
+                      <span class="section-label" [style.font-size.px]="sectionLabelFontPx || null">{{ sec }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
 
           @if (!loading && !loadError) {
-            <div class="sections-overlay">
-              @for (sec of sections; track sec) {
-                <div
-                  class="section-band"
-                  [class.section-band--annotated]="isAnnotated(sec)"
-                  [class.section-band--selected]="selectedSection === sec && !isAnnotated(sec) && !savingAnnotation"
-                  [class.section-band--saving]="savingAnnotation && selectedSection === sec"
-                  (click)="onZoneTap(sec)">
-                  @if (savingAnnotation && selectedSection === sec) {
-                    <mat-spinner diameter="20" class="saving-spinner" />
-                  } @else if (isAnnotated(sec)) {
-                    <mat-icon class="annotated-icon">check_circle</mat-icon>
-                  } @else if (selectedSection === sec) {
-                    <mat-icon class="selected-icon">radio_button_checked</mat-icon>
-                  } @else {
-                    <span class="section-label">{{ sec }}</span>
-                  }
-                </div>
-              }
-            </div>
+            <p class="overview-hint">
+              <mat-icon>touch_app</mat-icon>
+              <span>Tocca la zona nell'immagine dove si trova il difetto</span>
+            </p>
           }
-        </div>
+        }
 
         @if (loadError) {
           <div class="error-box">
@@ -97,30 +100,39 @@ export interface DefectImageViewerData {
           </div>
         }
 
-        <!-- Instruction hint -->
-        @if (!loading && !loadError) {
+        <!-- STEP 2 — preview of the chosen zone, then classify -->
+        @if (selectedSection !== null && !loadError) {
+          <div class="preview-toolbar">
+            <button type="button" class="back-btn" (click)="clearSelection()" [disabled]="savingAnnotation">
+              <mat-icon>arrow_back</mat-icon>
+              Cambia zona
+            </button>
+            <span class="preview-zone-label">Anteprima zona <strong>{{ selectedSection }}</strong></span>
+          </div>
+
+          <div class="zone-preview"
+            [style.width.px]="previewBandWidthPx || null"
+            [style.height.px]="previewHeightPx">
+            <img [src]="imageUrl"
+              class="zone-preview__img"
+              [style.height.px]="previewHeightPx"
+              [style.transform]="'translateX(' + previewTranslatePx + 'px)'"
+              alt="Anteprima zona difetto" />
+          </div>
+
           <p class="overview-hint" [class.overview-hint--pulse]="showPickerHint">
             @if (savingAnnotation) {
               <mat-spinner diameter="16" />
-              <span>Saving…</span>
-            } @else if (selectedSection !== null && selectedDefectType) {
+              <span>Salvataggio…</span>
+            } @else if (selectedDefectType) {
               <mat-icon>check</mat-icon>
               <span>Zona <strong>{{ selectedSection }}</strong> selezionata come <strong>{{ selectedDefectType }}</strong> — premi Conferma</span>
-            } @else if (selectedSection !== null) {
-              <mat-icon>arrow_downward</mat-icon>
-              <span>Zona <strong>{{ selectedSection }}</strong> selezionata — scegli il tipo di difetto qui sotto</span>
-            } @else if (selectedDefectType) {
-              <mat-icon>touch_app</mat-icon>
-              <span>Tocca la zona nell'immagine dove si trova il difetto</span>
             } @else {
               <mat-icon>arrow_downward</mat-icon>
-              <span>Scegli il tipo di difetto qui sotto, poi tocca la zona nell'immagine</span>
+              <span>Scegli il tipo di difetto qui sotto</span>
             }
           </p>
-        }
 
-        <!-- Type chips — always visible -->
-        @if (!loading && !loadError) {
           <div class="defect-type-picker" [class.defect-type-picker--highlight]="showPickerHint">
             <span class="picker-label">Che tipo di difetto?</span>
             <div class="picker-chips">
@@ -188,10 +200,11 @@ export interface DefectImageViewerData {
       position: relative; line-height: 0; border-radius: 10px;
       overflow: hidden; border: 1px solid #e5e7eb; background: #111;
       min-height: 80px;
-      /* Take the full available width. The zone overlay divides this width into equal
-         flex bands, which still matches the backend's per-zone crops (equal-width columns)
-         regardless of how wide the image is displayed. */
-      width: 100%;
+      /* Wrap tightly around the image so the zone overlay sits exactly on the image
+         columns (no letterbox), matching the backend's per-zone crops. The height cap
+         keeps the overview from growing taller than the viewport. */
+      width: fit-content;
+      max-width: 100%;
       margin: 0 auto;
     }
 
@@ -204,12 +217,22 @@ export interface DefectImageViewerData {
 
     .defect-image {
       display: block;
-      /* Fill the container width so the image (and its zone overlay) uses the whole modal.
-         No max-height so the full width is always honoured and the overlay stays aligned. */
-      width: 100%; height: auto;
-      max-width: 100%;
+      width: auto; height: auto;
+      max-width: 100%; max-height: 46vh;
       background: #000;
       &--hidden { visibility: hidden; }
+    }
+
+    /* Portrait images: stretch to fill the modal width so the zones stay wide/readable.
+       (Step-2 preview always shows the true, undistorted crop.) */
+    .image-container--fill {
+      width: 100%;
+      height: 46vh;
+    }
+    .image-container--fill .defect-image {
+      width: 100%; height: 100%;
+      max-width: none; max-height: none;
+      object-fit: fill;
     }
 
     .sections-overlay {
@@ -240,13 +263,13 @@ export interface DefectImageViewerData {
     }
 
     .section-label {
-      /* Scales with the band width: small when there are many sections (e.g. 20),
-         larger when there are few. */
-      font-size: clamp(0.75rem, 1.4vw, 1.25rem); font-weight: 800;
+      /* Fallback size; the exact size is set inline from the band width (see TS). */
+      font-size: clamp(0.6rem, 1.2vw, 1.1rem); font-weight: 800;
       color: white;
       text-shadow: 0 1px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.5);
       pointer-events: none;
       line-height: 1;
+      white-space: nowrap;
     }
 
     .annotated-icon {
@@ -261,6 +284,38 @@ export interface DefectImageViewerData {
       display: flex; align-items: center; gap: 10px;
       padding: 20px; color: #6b7280; font-size: 0.88rem;
       mat-icon { font-size: 32px; width: 32px; height: 32px; color: #d1d5db; }
+    }
+
+    /* ── Zone preview (step 2) ── */
+    .preview-toolbar {
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 2px solid #e5e7eb; background: #fff; color: #374151;
+      border-radius: 10px; padding: 8px 14px;
+      font-size: 0.9rem; font-weight: 700; cursor: pointer;
+      transition: border-color 0.12s, background 0.12s, color 0.12s;
+      mat-icon { font-size: 18px; width: 18px; height: 18px; }
+
+      &:hover:not(:disabled) { border-color: #5eead4; background: #f0fdfa; color: #0f766e; }
+      &:disabled { opacity: 0.5; cursor: default; }
+    }
+
+    .preview-zone-label {
+      font-size: 1rem; color: #374151;
+      strong { color: #0f766e; font-weight: 800; }
+    }
+
+    .zone-preview {
+      margin: 0 auto; overflow: hidden; line-height: 0;
+      border-radius: 10px; border: 1px solid #e5e7eb; background: #000;
+      max-width: 100%;
+    }
+
+    .zone-preview__img {
+      display: block; width: auto; max-width: none;
     }
 
     /* ── Status hint ── */
@@ -370,6 +425,17 @@ export class DefectImageViewerComponent implements OnInit, OnDestroy {
   selectedDefectType: string | null = null;
   annotations: DefectAnnotation[] = [];
 
+  // Natural pixel size of the loaded image — used to compute the zone preview crop.
+  imgNaturalWidth = 0;
+  imgNaturalHeight = 0;
+  readonly previewHeightPx = 400;
+
+  // Zone-number font size, computed from the rendered band width so every label fits
+  // its band (a CSS vw-based size can't know the band width). 0 → CSS fallback.
+  sectionLabelFontPx = 0;
+
+  @ViewChild('zonesOverlay') private zonesOverlay?: ElementRef<HTMLElement>;
+
   private objectUrl: string | null = null;
 
   constructor(
@@ -400,8 +466,47 @@ export class DefectImageViewerComponent implements OnInit, OnDestroy {
     }
   }
 
-  onImageLoad(): void { this.loading = false; }
+  /** Portrait images are stretched to fill the modal width so the 20 zones (and their
+   *  numbers) stay wide and readable; landscape images are shown at natural aspect. */
+  get stretchOverview(): boolean {
+    return this.imgNaturalHeight > 0 && this.imgNaturalHeight > this.imgNaturalWidth;
+  }
+
+  onImageLoad(ev?: Event): void {
+    this.loading = false;
+    const img = ev?.target as HTMLImageElement | undefined;
+    if (img?.naturalWidth) {
+      this.imgNaturalWidth = img.naturalWidth;
+      this.imgNaturalHeight = img.naturalHeight;
+    }
+    // Recompute after the view applies the (possibly stretched) layout, so the font
+    // is sized from the final band width.
+    setTimeout(() => this.fitZoneLabels());
+  }
+
+  /** Size the zone numbers to the actual rendered band width (overlay width ÷ sections). */
+  private fitZoneLabels(): void {
+    const w = this.zonesOverlay?.nativeElement.offsetWidth ?? 0;
+    if (w > 0 && this.sectionCount > 0) {
+      const bandPx = w / this.sectionCount;
+      this.sectionLabelFontPx = Math.max(8, Math.min(20, bandPx * 0.5));
+    }
+  }
   onImageError(): void { this.loading = false; this.loadError = true; }
+
+  // ── Zone preview (step 2) ─────────────────────────────────────────────────
+  // The image is scaled to previewHeightPx tall; we then show only the 1/N-wide
+  // band of the selected section and shift it into view with translateX. This
+  // mirrors exactly the equal-width column the backend crops on save.
+  private get previewScale(): number {
+    return this.imgNaturalHeight > 0 ? this.previewHeightPx / this.imgNaturalHeight : 0;
+  }
+  get previewBandWidthPx(): number {
+    return this.sectionCount > 0 ? (this.imgNaturalWidth * this.previewScale) / this.sectionCount : 0;
+  }
+  get previewTranslatePx(): number {
+    return -((this.selectedSection ?? 1) - 1) * this.previewBandWidthPx;
+  }
 
   isAnnotated(section: number): boolean {
     return this.annotations.some(a => a.sectionIndex === section);
@@ -410,6 +515,12 @@ export class DefectImageViewerComponent implements OnInit, OnDestroy {
   onZoneTap(sec: number): void {
     if (this.isAnnotated(sec) || this.savingAnnotation) return;
     this.selectedSection = this.selectedSection === sec ? null : sec;
+  }
+
+  /** Go back to the zone-selection step (step 1) — e.g. wrong position picked. */
+  clearSelection(): void {
+    if (this.savingAnnotation) return;
+    this.selectedSection = null;
   }
 
   saveAnnotation(): void {

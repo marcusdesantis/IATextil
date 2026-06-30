@@ -495,7 +495,6 @@ export class OperatorComponent implements OnInit, OnDestroy {
       } satisfies DefectImageViewerData,
       width: '1100px',
       maxWidth: '98vw',
-      height: '96vh',
       maxHeight: '96vh',
       disableClose: false,
     }).afterClosed().subscribe((saved) => {
