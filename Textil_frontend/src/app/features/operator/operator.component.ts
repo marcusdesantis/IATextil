@@ -300,8 +300,21 @@ type Phase = 'loading' | 'error' | 'moving' | 'stopped' | 'busy';
       strong { font-weight: 700; }
     }
 
-    @media (max-width: 1024px) {
+    @media (max-width: 1300px) {
       .last-bar { left: 0; }
+    }
+
+    /* Tablet landscape / short viewports (e.g. 1280×800): compact the layout so the
+       "process stopped" phase (40-position grid) fits without a large scroll. */
+    @media (max-height: 840px) {
+      .op-page { min-height: calc(100vh - 52px); padding: 16px 16px 84px; }
+      .state-screen { gap: 12px; max-width: 620px; }
+      .state-icon { font-size: 56px; width: 56px; height: 56px; }
+      .state-title { font-size: 1.7rem; }
+      .state-sub { font-size: 1rem; }
+      .ruler-grid { max-height: 60vh; gap: 8px; }
+      .pos-btn { height: 56px; font-size: 1.3rem; }
+      .btn-action { min-height: 64px; }
     }
   `],
 })

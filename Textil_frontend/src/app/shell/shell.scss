@@ -228,8 +228,8 @@
 
 // ---- Responsive ----
 
-// Tablet (≤ 1024px): sidebar se puede ocultar con hamburger
-@media (max-width: 1024px) {
+// Tablet (≤ 1300px, incluye tablet horizontal 1280×800): sidebar oculta con hamburger
+@media (max-width: 1300px) {
   .topbar {
     display: flex;
   }

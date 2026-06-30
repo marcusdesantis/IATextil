@@ -428,7 +428,9 @@ export class DefectImageViewerComponent implements OnInit, OnDestroy {
   // Natural pixel size of the loaded image — used to compute the zone preview crop.
   imgNaturalWidth = 0;
   imgNaturalHeight = 0;
-  readonly previewHeightPx = 400;
+  // Sized to the viewport in ngOnInit so the step-2 preview never overflows a short
+  // (tablet landscape) screen. Capped at 400px on tall screens.
+  previewHeightPx = 400;
 
   // Zone-number font size, computed from the rendered band width so every label fits
   // its band (a CSS vw-based size can't know the band width). 0 → CSS fallback.
@@ -446,6 +448,10 @@ export class DefectImageViewerComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Size the zone preview to the viewport so it fits short (tablet landscape) screens.
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+    this.previewHeightPx = Math.round(Math.min(400, vh * 0.45));
+
     // Load the image through HttpClient so the auth interceptor attaches the JWT.
     this.inspectionService.getSnapshotImage(this.data.snapshot.snapshotId).subscribe({
       next: (blob) => {
