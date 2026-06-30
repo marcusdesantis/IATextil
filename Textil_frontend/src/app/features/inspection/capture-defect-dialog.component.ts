@@ -143,9 +143,13 @@ export interface CaptureDefectDialogResult {
     /* ── Ruler grid ── */
     .ruler-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 12px;
       margin-bottom: 16px;
+      max-height: 380px;
+      overflow-y: auto;
+      /* leave room for the scrollbar so buttons don't touch it */
+      padding-right: 4px;
     }
 
     .pos-btn {

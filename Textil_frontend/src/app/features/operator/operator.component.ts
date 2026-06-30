@@ -177,10 +177,14 @@ type Phase = 'loading' | 'error' | 'moving' | 'stopped' | 'busy';
     /* ── Ruler grid ── */
     .ruler-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 10px;
       width: 100%;
-      max-width: 440px;
+      max-width: 560px;
+      max-height: 56vh;
+      overflow-y: auto;
+      /* leave room for the scrollbar so buttons don't touch it */
+      padding-right: 4px;
     }
 
     .pos-btn {

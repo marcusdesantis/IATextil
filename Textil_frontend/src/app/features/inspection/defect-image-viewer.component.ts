@@ -188,10 +188,10 @@ export interface DefectImageViewerData {
       position: relative; line-height: 0; border-radius: 10px;
       overflow: hidden; border: 1px solid #e5e7eb; background: #111;
       min-height: 80px;
-      /* Wrap tightly around the actual image so the zone overlay sits exactly on the
-         image columns (no letterbox bars), matching what the backend crops per zone. */
-      width: fit-content;
-      max-width: 100%;
+      /* Take the full available width. The zone overlay divides this width into equal
+         flex bands, which still matches the backend's per-zone crops (equal-width columns)
+         regardless of how wide the image is displayed. */
+      width: 100%;
       margin: 0 auto;
     }
 
@@ -204,8 +204,10 @@ export interface DefectImageViewerData {
 
     .defect-image {
       display: block;
-      width: auto; height: auto;
-      max-width: 100%; max-height: 48vh;
+      /* Fill the container width so the image (and its zone overlay) uses the whole modal.
+         No max-height so the full width is always honoured and the overlay stays aligned. */
+      width: 100%; height: auto;
+      max-width: 100%;
       background: #000;
       &--hidden { visibility: hidden; }
     }
@@ -238,7 +240,9 @@ export interface DefectImageViewerData {
     }
 
     .section-label {
-      font-size: 2rem; font-weight: 800;
+      /* Scales with the band width: small when there are many sections (e.g. 20),
+         larger when there are few. */
+      font-size: clamp(0.75rem, 1.4vw, 1.25rem); font-weight: 800;
       color: white;
       text-shadow: 0 1px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.5);
       pointer-events: none;
