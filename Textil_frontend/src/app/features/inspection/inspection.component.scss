@@ -75,6 +75,72 @@
   color: #d1d5db;
 }
 
+// ---- Local frames loader (test) ----
+.local-loader {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px 14px 20px;
+  margin-bottom: 28px;
+
+  &--active {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+  }
+}
+
+.local-loader__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.local-loader__hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.local-loader__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.local-loader__input {
+  flex: 1;
+  min-width: 260px;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 0.85rem;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  }
+
+  &:disabled { background: #f3f4f6; color: #9ca3af; }
+}
+
+.local-loader__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #047857;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
 // ---- Config summary (read-only) ----
 .config-summary {
   display: flex;

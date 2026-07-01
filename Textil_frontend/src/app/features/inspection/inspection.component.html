@@ -45,6 +45,46 @@
     </a>
   </div>
 
+  <!-- Local frames loader (test) — replay frames from a folder instead of a camera -->
+  <div class="local-loader" [class.local-loader--active]="localActive">
+    <div class="local-loader__head">
+      <mat-slide-toggle [(ngModel)]="localMode" [disabled]="localActive">
+        Carica frame locali (test)
+      </mat-slide-toggle>
+      <span class="local-loader__hint">
+        Carica i fotogrammi da una cartella del server invece che dalla telecamera.
+      </span>
+    </div>
+
+    @if (localMode || localActive) {
+      <div class="local-loader__row">
+        <input
+          class="local-loader__input"
+          type="text"
+          [(ngModel)]="localPath"
+          placeholder="Es. C:\Users\usuario\Downloads\20260701_135720"
+          [disabled]="localActive || localLoading" />
+        <button
+          mat-raised-button color="primary"
+          (click)="startLocal()"
+          [disabled]="!localPath || localActive || localLoading">
+          @if (localLoading) {
+            <mat-spinner diameter="18" />
+          } @else {
+            <mat-icon>folder_open</mat-icon>
+          }
+          Carica cartella
+        </button>
+      </div>
+      @if (localActive) {
+        <span class="local-loader__note">
+          <mat-icon>check_circle</mat-icon>
+          Sessione locale attiva — usa "Ferma" sul pannello per chiuderla e caricare un'altra cartella.
+        </span>
+      }
+    }
+  </div>
+
   <!-- Global error -->
   @if (globalError) {
     <div class="global-error">

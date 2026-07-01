@@ -22,6 +22,9 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _startGates =
         new(StringComparer.OrdinalIgnoreCase);
 
+    // Virtual camera id used for a local-files session (frames loaded from disk instead of a camera).
+    public const string LocalCameraId = "LOCAL";
+
     public VimbaCameraService(
         IImageProcessingService imageProcessor,
         IStorageService storage,
@@ -257,6 +260,149 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         }
     }
 
+    public async Task<(string CameraId, int TotalFrames)> StartLocalRecordingAsync(
+        string folderPath, string? machineState = null, int? startedByUserId = null,
+        string? startedByUsername = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath))
+            throw new InvalidOperationException("Folder path is required.");
+        if (!Directory.Exists(folderPath))
+            throw new InvalidOperationException($"Folder not found: {folderPath}");
+
+        // Serialize starts on the virtual camera id (same reasoning as the physical path).
+        var gate = _startGates.GetOrAdd(LocalCameraId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
+            if (_sessions.ContainsKey(LocalCameraId))
+                throw new InvalidOperationException("A local session is already active. Stop it before loading another folder.");
+
+            // Load every .bin frame, ordered by the trailing numeric index in the file name
+            // (frame_YYYYMMDD_HHMMSS_fff_N.bin). This mirrors the acquisition order.
+            var binFiles = Directory.EnumerateFiles(folderPath, "*.bin")
+                .Select(p => new { Path = p, Seq = ParseFrameSequence(p) })
+                .OrderBy(x => x.Seq)
+                .ToList();
+            if (binFiles.Count == 0)
+                throw new InvalidOperationException("No .bin frames were found in the folder.");
+
+            // The .bin is the raw camera buffer; its width/height/format aren't encoded in it.
+            // Derive the geometry from the companion .png (each frame is self-describing), falling
+            // back to the known simulator geometry (200x2800 RGB8) if the .png is missing.
+            var (width, height, pixelFormat) = ResolveLocalGeometry(binFiles[0].Path);
+
+            var settings = _fabricSettings.CurrentValue;
+            var startedAt = DateTime.UtcNow;
+            var folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+            var recordingId = await _repository.CreateRecordingSessionAsync(new RecordingSessionRecord
+            {
+                SessionName = $"Local_{folderName}_{startedAt:yyyyMMdd_HHmmss}",
+                FilePath = folderPath,
+                StartTime = startedAt,
+                Status = "Active",
+                StartedByUserId = startedByUserId,
+                StartedByUsername = startedByUsername
+            });
+
+            var session = new ActiveRecordingSession
+            {
+                CameraId = LocalCameraId,
+                OutputFolder = folderPath,
+                RecordingId = recordingId,
+                SessionName = folderPath,
+                IsRecording = true,
+                IsLocal = true,
+                StartedAtUtc = startedAt,
+                // Keep ALL frames in the buffer so "fotogrammi totale" equals the folder count.
+                RingBufferSize = Math.Max(binFiles.Count, settings.RingBufferSize)
+            };
+
+            foreach (var f in binFiles)
+            {
+                ct.ThrowIfCancellationRequested();
+                var bytes = await File.ReadAllBytesAsync(f.Path, ct);
+                session.AddFrame(new FrameEntry
+                {
+                    FrameId = f.Seq,
+                    Bytes = bytes,
+                    Width = width,
+                    Height = height,
+                    PixelFormat = pixelFormat,
+                    TimestampUtc = DateTime.UtcNow
+                });
+            }
+
+            _sessions.TryAdd(LocalCameraId, session);
+            _logger.LogInformation(
+                "Local session started from {Folder}: {Count} frames loaded, geometry {Width}x{Height} {Format}",
+                folderPath, session.TotalFrames, width, height, pixelFormat);
+
+            return (LocalCameraId, (int)session.TotalFrames);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    /// <summary>Extracts the trailing frame number N from a "..._N.bin" file name (0 if absent).</summary>
+    private static long ParseFrameSequence(string path)
+    {
+        var name = Path.GetFileNameWithoutExtension(path);
+        var underscore = name.LastIndexOf('_');
+        if (underscore >= 0 && long.TryParse(name.AsSpan(underscore + 1), out var seq))
+            return seq;
+        return 0;
+    }
+
+    /// <summary>
+    /// Derives the raw-frame geometry (width, height, pixel format) from the companion .png next to a
+    /// .bin. The saved PNG is rotated 90° from the raw frame, so the raw width/height are the PNG's
+    /// height/width. Falls back to the simulator's known 200x2800 RGB8 frame if the PNG can't be read.
+    /// </summary>
+    private (uint Width, uint Height, IFrame.PixelFormatValue Format) ResolveLocalGeometry(string binPath)
+    {
+        var pngPath = Path.ChangeExtension(binPath, ".png");
+        try
+        {
+            if (File.Exists(pngPath))
+            {
+                using var fs = File.OpenRead(pngPath);
+                Span<byte> hdr = stackalloc byte[26];
+                if (fs.Read(hdr) == hdr.Length)
+                {
+                    // PNG IHDR: width @16..19, height @20..23 (big-endian), color type @25.
+                    uint pngWidth = (uint)((hdr[16] << 24) | (hdr[17] << 16) | (hdr[18] << 8) | hdr[19]);
+                    uint pngHeight = (uint)((hdr[20] << 24) | (hdr[21] << 16) | (hdr[22] << 8) | hdr[23]);
+                    var format = hdr[25] switch
+                    {
+                        0 => IFrame.PixelFormatValue.Mono8,   // grayscale
+                        6 => IFrame.PixelFormatValue.RGBa8,   // truecolor + alpha
+                        _ => IFrame.PixelFormatValue.RGB8,    // truecolor (2)
+                    };
+                    if (pngWidth > 0 && pngHeight > 0)
+                    {
+                        // Undo the 90° rotation applied when the PNG was saved.
+                        _logger.LogInformation(
+                            "Local geometry from {Png}: PNG {PngW}x{PngH} → raw frame {RawW}x{RawH} {Format}",
+                            Path.GetFileName(pngPath), pngWidth, pngHeight, pngHeight, pngWidth, format);
+                        return (pngHeight, pngWidth, format);
+                    }
+                }
+            }
+            else
+            {
+                _logger.LogWarning("No companion PNG for {Bin}; using default 200x2800 RGB8 geometry.", Path.GetFileName(binPath));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read geometry from {Png}; using default 200x2800 RGB8.", pngPath);
+        }
+        return (200, 2800, IFrame.PixelFormatValue.RGB8);
+    }
+
     public async Task StopRecordingAsync(string cameraId)
     {
         if (_sessions.TryRemove(cameraId.Trim(), out var session))
@@ -278,6 +424,13 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
             throw new InvalidOperationException($"No active recording session for camera {cameraId}.");
 
         session.SetFabricState(isMoving);
+
+        // Local sessions have no physical camera — just flip the buffer flag (frames are already loaded).
+        if (session.IsLocal)
+        {
+            _logger.LogInformation("Local session {CameraId}: fabric state set to {State}", cameraId, isMoving ? "moving" : "stopped");
+            return;
+        }
 
         if (isMoving)
         {

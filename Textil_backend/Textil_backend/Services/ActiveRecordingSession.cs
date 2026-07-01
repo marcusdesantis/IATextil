@@ -22,6 +22,13 @@ public class ActiveRecordingSession : IDisposable
     public IAcquisition Acquisition { get; set; } = null!;
     public string OutputFolder { get; set; } = null!;
     public bool IsRecording { get; set; }
+
+    /// <summary>
+    /// True when the session is fed from local files on disk instead of a physical camera.
+    /// Local sessions have no OpenCamera/Acquisition, so camera-specific operations
+    /// (pause/resume acquisition, packet-size negotiation) must be skipped for them.
+    /// </summary>
+    public bool IsLocal { get; set; }
     public int RecordingId { get; set; }
     public string SessionName { get; set; } = null!;
     public DateTime StartedAtUtc { get; set; }

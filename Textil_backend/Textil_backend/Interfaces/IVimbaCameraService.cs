@@ -7,6 +7,15 @@ public interface IVimbaCameraService
     IReadOnlyList<CameraInfoDto> GetCameras();
     IReadOnlyList<object> GetActiveSessions();
     Task<string> StartRecordingAsync(string cameraId, string? machineState = null, int? ringBufferSize = null, int? startedByUserId = null, string? startedByUsername = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Starts a virtual recording session fed from local .bin frame files in <paramref name="folderPath"/>
+    /// instead of a physical camera. Every frame in the folder is loaded into the ring buffer (in numeric
+    /// order), so the whole capture/stitch pipeline works exactly as with a live camera. Returns the
+    /// virtual camera id used and the number of frames loaded.
+    /// </summary>
+    Task<(string CameraId, int TotalFrames)> StartLocalRecordingAsync(string folderPath, string? machineState = null, int? startedByUserId = null, string? startedByUsername = null, CancellationToken cancellationToken = default);
+
     Task StopRecordingAsync(string cameraId);
     Task<InspectionSnapshot> CaptureSnapshotAsync(string cameraId, string? machineState = null, string? notes = null, CancellationToken cancellationToken = default);
 

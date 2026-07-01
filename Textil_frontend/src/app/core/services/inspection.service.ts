@@ -70,6 +70,20 @@ export class InspectionService {
     );
   }
 
+  /**
+   * Starts a virtual session fed from local .bin frames in a server-side folder instead of a camera.
+   * The folder path is resolved on the backend machine (can be any absolute path).
+   */
+  startLocalRecording(
+    folderPath: string,
+    machineState?: string,
+  ): Observable<{ message: string; cameraId: string; folder: string; totalFrames: number }> {
+    return this.http.post<{ message: string; cameraId: string; folder: string; totalFrames: number }>(
+      `${this.baseUrl}/start-local-recording`,
+      { folderPath, machineState: machineState ?? null },
+    );
+  }
+
   stopRecording(cameraId: string): Observable<StopRecordingResponse> {
     return this.http.post<StopRecordingResponse>(
       `${this.baseUrl}/stop-recording/${encodeURIComponent(cameraId)}`,

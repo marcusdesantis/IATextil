@@ -50,6 +50,25 @@ public class ImageProcessingService : IImageProcessingService
                 // To flip the rotation direction, use Rotate270FlipNone instead.
                 bitmap.RotateFlip(RotateFlipType.Rotate90FlipNone);
 
+                // When many full frames are stitched (e.g. tall simulator frames × a large "per lato"),
+                // the composite can exceed GDI+'s encoder limits and Image.Save fails with a generic
+                // GDI+ error, leaving a 0-byte PNG. Downscale proportionally so the longest side fits a
+                // safe maximum — the image stays viewable and the vertical zone bands remain selectable.
+                const int MaxSide = 20000;
+                var longest = Math.Max(bitmap.Width, bitmap.Height);
+                if (longest > MaxSide)
+                {
+                    var scale = (double)MaxSide / longest;
+                    var newWidth = Math.Max(1, (int)(bitmap.Width * scale));
+                    var newHeight = Math.Max(1, (int)(bitmap.Height * scale));
+                    using var scaled = new Bitmap(bitmap, new Size(newWidth, newHeight));
+                    scaled.Save(pngFullPath, ImageFormat.Png);
+                    _logger.LogWarning(
+                        "Stitched image {W}x{H} exceeded the {Max}px PNG limit; downscaled to {NW}x{NH}.",
+                        bitmap.Width, bitmap.Height, MaxSide, newWidth, newHeight);
+                    return;
+                }
+
                 bitmap.Save(pngFullPath, ImageFormat.Png);
             }, cancellationToken);
         }

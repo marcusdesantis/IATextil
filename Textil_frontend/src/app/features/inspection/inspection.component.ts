@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -10,6 +11,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDialog } from '@angular/material/dialog';
 
 import { InspectionService } from '../../core/services/inspection.service';
@@ -35,6 +37,7 @@ interface CameraState {
   selector: 'app-inspection',
   standalone: true,
   imports: [
+    FormsModule,
     RouterLink,
     MatButtonModule,
     MatIconModule,
@@ -43,6 +46,7 @@ interface CameraState {
     MatTooltipModule,
     MatDividerModule,
     MatProgressBarModule,
+    MatSlideToggleModule,
   ],
   templateUrl: './inspection.component.html',
   styleUrls: ['./inspection.component.scss'],
@@ -51,6 +55,12 @@ export class InspectionComponent implements OnInit, OnDestroy {
   cameras: CameraState[] = [];
   loadingCameras = false;
   globalError: string | null = null;
+
+  // Local-frames test mode: load .bin frames from a server-side folder instead of a camera.
+  private readonly LOCAL_ID = 'LOCAL';
+  localMode = false;
+  localPath = '';
+  localLoading = false;
 
   private pollingSubscription?: Subscription;
 
@@ -98,17 +108,7 @@ export class InspectionComponent implements OnInit, OnDestroy {
 
   refreshSessions(): void {
     this.inspectionService.getActiveSessions().subscribe({
-      next: (sessions) => {
-        this.cameras.forEach((state) => {
-          const session = sessions.find((s) => s.cameraId === state.camera.id) ?? null;
-          state.session = session;
-          state.isRecording = session?.isRecording ?? false;
-          if (session) {
-            state.fabricIsMoving = session.fabricIsMoving;
-            state.isPaused = session.isPaused;
-          }
-        });
-      },
+      next: (sessions) => this.applySessions(sessions),
     });
   }
 
@@ -116,17 +116,79 @@ export class InspectionComponent implements OnInit, OnDestroy {
     this.pollingSubscription = interval(5000)
       .pipe(switchMap(() => this.inspectionService.getActiveSessions()))
       .subscribe({
-        next: (sessions) => {
-          this.cameras.forEach((state) => {
-            const session = sessions.find((s) => s.cameraId === state.camera.id) ?? null;
-            state.session = session;
-            state.isRecording = session?.isRecording ?? false;
-            if (session) {
-              state.fabricIsMoving = session.fabricIsMoving;
-            }
-          });
-        },
+        next: (sessions) => this.applySessions(sessions),
       });
+  }
+
+  /** Syncs each camera card with its active session, and shows a virtual card for a live local session. */
+  private applySessions(sessions: ActiveSession[]): void {
+    // Reconcile: a running local session with no card yet (e.g. after a page reload) gets a virtual card.
+    const localSession = sessions.find((s) => s.cameraId === this.LOCAL_ID);
+    if (localSession && !this.cameras.some((c) => c.camera.id === this.LOCAL_ID)) {
+      this.ensureLocalCard(localSession.sessionName);
+    }
+
+    this.cameras.forEach((state) => {
+      const session = sessions.find((s) => s.cameraId === state.camera.id) ?? null;
+      state.session = session;
+      state.isRecording = session?.isRecording ?? false;
+      if (session) {
+        state.fabricIsMoving = session.fabricIsMoving;
+        state.isPaused = session.isPaused;
+      }
+    });
+  }
+
+  /** Loads all .bin frames from the folder into a virtual "local" session and shows it as a camera card. */
+  startLocal(): void {
+    const path = this.localPath.trim();
+    if (!path || this.localLoading) return;
+
+    this.localLoading = true;
+    this.inspectionService.startLocalRecording(path).subscribe({
+      next: (res) => {
+        this.localLoading = false;
+        this.ensureLocalCard(res.folder);
+        this.refreshSessions();
+        this.notify(`Cartella caricata: ${res.totalFrames} fotogrammi`, 'success');
+      },
+      error: (err) => {
+        this.localLoading = false;
+        this.notify(err?.error?.message ?? 'Impossibile caricare la cartella', 'error');
+      },
+    });
+  }
+
+  /** Returns true while a local session card is present (folder already loaded). */
+  get localActive(): boolean {
+    return this.cameras.some((c) => c.camera.id === this.LOCAL_ID);
+  }
+
+  /** Creates (or updates) the virtual camera card that fronts the local session. It becomes cameras[0]. */
+  private ensureLocalCard(folder: string): CameraState {
+    let card = this.cameras.find((c) => c.camera.id === this.LOCAL_ID);
+    if (card) {
+      card.camera.modelName = folder;
+      card.isRecording = true;
+      return card;
+    }
+    card = {
+      camera: {
+        id: this.LOCAL_ID,
+        serial: '—',
+        name: 'Frame locali (test)',
+        modelName: folder,
+        interfaceName: 'Locale',
+      },
+      isRecording: true,
+      isPaused: false,
+      session: null,
+      lastSnapshot: null,
+      loading: false,
+      fabricIsMoving: true,
+    };
+    this.cameras.unshift(card);
+    return card;
   }
 
   startRecording(state: CameraState): void {
@@ -157,6 +219,10 @@ export class InspectionComponent implements OnInit, OnDestroy {
         state.fabricIsMoving = true;
         state.session = null;
         state.loading = false;
+        // A local session is virtual — drop its card so the real cameras show again.
+        if (state.camera.id === this.LOCAL_ID) {
+          this.cameras = this.cameras.filter((c) => c !== state);
+        }
         this.notify('Registrazione fermata', 'success');
       },
       error: (err) => {

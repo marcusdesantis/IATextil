@@ -9,6 +9,8 @@ namespace Textil_backend.Controllers;
 
 public record CreateAnnotationRequest(int SectionIndex, string? DefectType = null);
 
+public record StartLocalRecordingRequest(string FolderPath, string? MachineState = null);
+
 [Route("api/[controller]")]
 [ApiController]
 [Authorize]
@@ -128,6 +130,36 @@ public class InspectionController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(new { Message = $"Failed to start recording: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Starts a virtual recording session fed from local .bin frames in the given folder instead of a
+    /// physical camera. Loads every frame in the folder into the ring buffer so the whole capture/stitch
+    /// pipeline works identically. Used to replay frames the client provided for testing.
+    /// </summary>
+    [HttpPost("start-local-recording")]
+    public async Task<IActionResult> StartLocalRecording([FromBody] StartLocalRecordingRequest request)
+    {
+        try
+        {
+            int? userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : null;
+            var username = User.FindFirstValue(ClaimTypes.Name);
+
+            var (cameraId, totalFrames) = await _vimbaCameraService.StartLocalRecordingAsync(
+                request.FolderPath, request.MachineState, userId, username);
+
+            return Ok(new
+            {
+                Message = "Local recording started",
+                CameraId = cameraId,
+                Folder = request.FolderPath,
+                TotalFrames = totalFrames
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Message = $"Failed to start local recording: {ex.Message}" });
         }
     }
 
