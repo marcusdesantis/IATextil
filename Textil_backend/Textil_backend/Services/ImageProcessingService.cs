@@ -276,4 +276,56 @@ public class ImageProcessingService : IImageProcessingService
 
         return result;
     }
+
+    /// <summary>
+    /// Reconstructs a continuous fabric image by stacking the FULL frames vertically (in buffer
+    /// order). Unlike <see cref="StitchFrames"/> (one center row per frame — correct for a true
+    /// 1-line line-scan), this keeps every row of each frame, so consecutive area-scan strips are
+    /// concatenated into one tall image. N frames of H rows → width × (N·H) pixels.
+    /// </summary>
+    public byte[] StitchFullFrames(IReadOnlyList<FrameEntry> frames, uint frameWidth, IFrame.PixelFormatValue pixelFormat, out uint totalHeight)
+    {
+        totalHeight = 0;
+        if (frames.Count == 0 || frameWidth == 0)
+            return Array.Empty<byte>();
+
+        int bytesPerPixel = pixelFormat switch
+        {
+            IFrame.PixelFormatValue.Mono8 => 1,
+            IFrame.PixelFormatValue.BGR8 or IFrame.PixelFormatValue.RGB8 => 3,
+            IFrame.PixelFormatValue.BGRa8 or IFrame.PixelFormatValue.RGBa8 => 4,
+            _ => 3
+        };
+
+        var rowBytes = (int)frameWidth * bytesPerPixel;
+        if (rowBytes == 0)
+            return Array.Empty<byte>();
+
+        // Only stitch frames whose width/format match the reference, so rows line up. Count whole
+        // rows only (a partial trailing row from a malformed frame is dropped).
+        var usable = frames
+            .Where(f => f.Width == frameWidth && f.PixelFormat == pixelFormat && f.Bytes.Length >= rowBytes)
+            .ToList();
+        if (usable.Count == 0)
+            return Array.Empty<byte>();
+
+        long totalBytes = 0;
+        foreach (var f in usable)
+            totalBytes += (f.Bytes.Length / rowBytes) * (long)rowBytes;
+
+        var result = new byte[totalBytes];
+        var dst = 0;
+        var rowCount = 0;
+        foreach (var f in usable)
+        {
+            var rows = f.Bytes.Length / rowBytes;
+            var copyLen = rows * rowBytes;
+            Buffer.BlockCopy(f.Bytes, 0, result, dst, copyLen);
+            dst += copyLen;
+            rowCount += rows;
+        }
+
+        totalHeight = (uint)rowCount;
+        return result;
+    }
 }

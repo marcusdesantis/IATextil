@@ -361,18 +361,42 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
 
         var refFrame = buffer[centerIdx];
 
-        // The camera delivers each frame as a FULL 2D image (it assembles thousands of scan
-        // lines internally), so we show the whole center frame. The legacy StitchFrames sampled
-        // only one line per frame — correct for true 1-line line-scan, but it produced an unusable
-        // thin strip with the current full-frame configuration. (StitchFrames is kept for that mode.)
-        _ = frameCount; // not used in full-frame mode; kept for API/back-compat
+        // Compose a window of frames CENTERED on the reference frame and stack them into one
+        // continuous fabric image. Each camera frame is a thin strip along the travel direction
+        // (e.g. 2000×200), so a single frame alone is an unusably thin slice — stacking the
+        // surrounding frames reconstructs the fabric around the defect. StitchFullFrames keeps every
+        // row of each frame (unlike the 1-row-per-frame StitchFrames used for true 1-line line-scan).
+        //
+        // frameCount is interpreted PER SIDE (±), matching the UI "Per lato (±)" setting: we take up
+        // to `framesPerSide` frames BEFORE and AFTER the center, so the window spans up to
+        // 2·framesPerSide + 1 frames. It is clamped to what the ring buffer actually holds — if the
+        // buffer has fewer frames than requested, the window is smaller and a larger per-side value
+        // produces the same image (nothing more to stack).
+        var framesPerSide = Math.Max(0, frameCount ?? settings.DefaultFrameCount);
+
+        var start = Math.Max(0, centerIdx - framesPerSide);
+        var end = Math.Min(buffer.Length - 1, centerIdx + framesPerSide);
+        var count = end - start + 1;
+
+        var window = new FrameEntry[count];
+        Array.Copy(buffer, start, window, 0, count);
+
+        var stitched = _imageProcessor.StitchFullFrames(
+            window, refFrame.Width, refFrame.PixelFormat, out var stitchedHeight);
+
+        // Fallback to the single reference frame if stitching produced nothing (e.g. mismatched frames).
+        var outBytes = stitched.Length > 0 ? stitched : refFrame.Bytes;
+        var outHeight = stitched.Length > 0 ? stitchedHeight : refFrame.Height;
+
         _logger.LogInformation(
-            "Defect capture: buffer={Total}, offset={Offset}, center={Center}, frame={Width}x{Height}",
-            buffer.Length, offset, centerIdx, refFrame.Width, refFrame.Height);
+            "Defect capture: buffer={Total}, offset={Offset}, center={Center}, perSide={PerSide}, " +
+            "window=[{Start}..{End}] ({Count} frames), stitched={Width}x{Height}",
+            buffer.Length, offset, centerIdx, framesPerSide, start, end, count,
+            refFrame.Width, outHeight);
 
         return await SaveAndRecordSnapshot(
-            session.CameraId, refFrame.Bytes, refFrame.FrameId,
-            refFrame.Width, refFrame.Height,
+            session.CameraId, outBytes, refFrame.FrameId,
+            refFrame.Width, outHeight,
             refFrame.PixelFormat, session.RecordingId,
             machineState ?? "DefectCapture", notes,
             null, rulerPosition, rulerDerivedOffset ?? offset, ct);

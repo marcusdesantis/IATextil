@@ -25,6 +25,14 @@ public interface IImageProcessingService
     byte[] StitchFrames(IReadOnlyList<FrameEntry> frames, uint frameWidth, uint frameHeight, IFrame.PixelFormatValue pixelFormat);
 
     /// <summary>
+    /// Reconstructs a continuous fabric image by stacking the FULL frames vertically (in buffer
+    /// order). Each frame contributes all of its rows, so N frames of H rows produce an image of
+    /// width × (N·H) pixels. Only frames matching <paramref name="frameWidth"/>/<paramref name="pixelFormat"/>
+    /// are used. <paramref name="totalHeight"/> returns the resulting height in pixels.
+    /// </summary>
+    byte[] StitchFullFrames(IReadOnlyList<FrameEntry> frames, uint frameWidth, IFrame.PixelFormatValue pixelFormat, out uint totalHeight);
+
+    /// <summary>
     /// Crops a 1/totalSections horizontal band from an existing PNG file and saves it
     /// alongside the source with a "_s{sectionIndex}" suffix.
     /// Returns the absolute path of the saved crop file.
