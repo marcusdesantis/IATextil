@@ -381,6 +381,18 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         var window = new FrameEntry[count];
         Array.Copy(buffer, start, window, 0, count);
 
+        // Frame IDs of the span (ascending: oldest→newest) for the info banner — captured before the
+        // reverse below so the banner keeps reading low→high.
+        var oldestFrameId = window[0].FrameId;
+        var newestFrameId = window[count - 1].FrameId;
+
+        // Stack newest→oldest so the composed strip's travel axis runs in the SAME direction as the
+        // physical ruler: the older frames (fabric that passed the camera first, i.e. now at the HIGH
+        // cm end of the ruler) end up on one consistent side. This only reverses the left/right of the
+        // final (rotated) image — it does NOT mirror each frame's pixels. If the ruler ends up reading
+        // the other way, remove this single line to flip it back.
+        Array.Reverse(window);
+
         var stitched = _imageProcessor.StitchFullFrames(
             window, refFrame.Width, refFrame.PixelFormat, out var stitchedHeight);
 
@@ -419,8 +431,8 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         snapshot.StitchedWidth = (int)refFrame.Width;
         snapshot.StitchedHeight = (int)outHeight;
         snapshot.BufferFrameCount = buffer.Length;
-        snapshot.FirstFrameId = window[0].FrameId;
-        snapshot.LastFrameId = window[count - 1].FrameId;
+        snapshot.FirstFrameId = oldestFrameId;
+        snapshot.LastFrameId = newestFrameId;
 
         return snapshot;
     }

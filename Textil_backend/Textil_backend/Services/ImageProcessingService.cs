@@ -48,7 +48,8 @@ public class ImageProcessingService : IImageProcessingService
                 // travel). Rotate 90° so the long axis (travel) is horizontal — easier to view and the
                 // zone bands become wider. The crop divides the rotated image's height (= fabric width).
                 // To flip the rotation direction, use Rotate270FlipNone instead.
-                bitmap.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                // NOTE: rotation disabled on request — image kept in its original portrait orientation.
+                // bitmap.RotateFlip(RotateFlipType.Rotate90FlipNone);
 
                 bitmap.Save(pngFullPath, ImageFormat.Png);
             }, cancellationToken);
