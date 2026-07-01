@@ -388,18 +388,41 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         var outBytes = stitched.Length > 0 ? stitched : refFrame.Bytes;
         var outHeight = stitched.Length > 0 ? stitchedHeight : refFrame.Height;
 
+        var framesBack = centerIdx - start;     // older side actually taken
+        var framesFwd = end - centerIdx;         // newer side actually taken
         _logger.LogInformation(
-            "Defect capture: buffer={Total}, offset={Offset}, center={Center}, perSide={PerSide}, " +
-            "window=[{Start}..{End}] ({Count} frames), stitched={Width}x{Height}",
-            buffer.Length, offset, centerIdx, framesPerSide, start, end, count,
+            "Defect capture: buffer={Total}, offset={Offset}, center={Center}, perSide(req)={PerSide}, " +
+            "back={Back}, fwd={Fwd}, total={Count} frames, stitched={Width}x{Height}",
+            buffer.Length, offset, centerIdx, framesPerSide, framesBack, framesFwd, count,
             refFrame.Width, outHeight);
 
-        return await SaveAndRecordSnapshot(
+        // If either side is clamped below what was requested, a larger "Per lato" can't add frames
+        // there — the visual result won't change on that side. Surface it so it's obvious in the log.
+        if (framesBack < framesPerSide || framesFwd < framesPerSide)
+            _logger.LogWarning(
+                "Defect capture window CLAMPED: requested {PerSide}/side but got back={Back}, fwd={Fwd} " +
+                "(center is {DistFromEnd} frames from the newest end of a {Total}-frame buffer). " +
+                "Increasing 'Per lato' beyond this only extends the side that still has frames.",
+                framesPerSide, framesBack, framesFwd, buffer.Length - 1 - centerIdx, buffer.Length);
+
+        var snapshot = await SaveAndRecordSnapshot(
             session.CameraId, outBytes, refFrame.FrameId,
             refFrame.Width, outHeight,
             refFrame.PixelFormat, session.RecordingId,
             machineState ?? "DefectCapture", notes,
             null, rulerPosition, rulerDerivedOffset ?? offset, ct);
+
+        // Attach composition info so the viewer can show what was stitched (transient, not persisted).
+        snapshot.StitchedFrameCount = count;
+        snapshot.FramesBack = framesBack;
+        snapshot.FramesForward = framesFwd;
+        snapshot.StitchedWidth = (int)refFrame.Width;
+        snapshot.StitchedHeight = (int)outHeight;
+        snapshot.BufferFrameCount = buffer.Length;
+        snapshot.FirstFrameId = window[0].FrameId;
+        snapshot.LastFrameId = window[count - 1].FrameId;
+
+        return snapshot;
     }
 
     public async Task<InspectionSnapshot> CaptureSnapshotAsync(string cameraId, string? machineState = null, string? notes = null, CancellationToken ct = default)

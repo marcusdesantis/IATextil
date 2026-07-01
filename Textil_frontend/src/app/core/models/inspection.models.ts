@@ -63,4 +63,14 @@ export interface InspectionSnapshot {
   defectType: string | null;
   rulerPosition: number | null;
   calculatedOffsetFrames: number | null;
+
+  // Composition info (only present on the response right after a capture)
+  stitchedFrameCount?: number | null;
+  framesBack?: number | null;
+  framesForward?: number | null;
+  stitchedWidth?: number | null;
+  stitchedHeight?: number | null;
+  bufferFrameCount?: number | null;
+  firstFrameId?: number | null;
+  lastFrameId?: number | null;
 }

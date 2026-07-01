@@ -85,6 +85,13 @@ export interface DefectImageViewerData {
             }
           </div>
 
+          @if (!loading && !loadError && compositionInfo) {
+            <p class="composition-info">
+              <mat-icon>layers</mat-icon>
+              <span>{{ compositionInfo }}</span>
+            </p>
+          }
+
           @if (!loading && !loadError) {
             <p class="overview-hint">
               <mat-icon>touch_app</mat-icon>
@@ -318,6 +325,15 @@ export interface DefectImageViewerData {
       display: block; width: auto; max-width: none;
     }
 
+    /* ── Composition info (how the stitched image was built) ── */
+    .composition-info {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.9rem; color: #334155; margin: 0;
+      padding: 8px 12px; border-radius: 10px;
+      background: #ecfeff; border: 1px solid #a5f3fc;
+      mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; color: #0891b2; }
+    }
+
     /* ── Status hint ── */
     .overview-hint {
       display: flex; align-items: center; gap: 8px;
@@ -470,6 +486,22 @@ export class DefectImageViewerComponent implements OnInit, OnDestroy {
     if (this.objectUrl) {
       URL.revokeObjectURL(this.objectUrl);
     }
+  }
+
+  /** Human-readable summary of how the stitched image was composed. Only available on the
+   *  snapshot returned right after a capture (null when re-opening a stored snapshot). */
+  get compositionInfo(): string | null {
+    const s = this.data.snapshot;
+    if (s.stitchedFrameCount == null) return null;
+    const back = s.framesBack ?? 0;
+    const fwd = s.framesForward ?? 0;
+    const parts = [`${s.stitchedFrameCount} fotogrammi uniti (${back} indietro + ${fwd} avanti)`];
+    if (s.firstFrameId != null && s.lastFrameId != null) {
+      parts.push(`frame #${s.firstFrameId} → #${s.lastFrameId}`);
+    }
+    if (s.bufferFrameCount != null) parts.push(`buffer ${s.bufferFrameCount}`);
+    if (s.stitchedWidth && s.stitchedHeight) parts.push(`${s.stitchedWidth}×${s.stitchedHeight} px`);
+    return parts.join(' · ');
   }
 
   /** Portrait images are stretched to fill the modal width so the 20 zones (and their
