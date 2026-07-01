@@ -5,7 +5,31 @@
       "PowerShell(dotnet build \"c:\\\\proyectos\\\\abisoft\\\\IATextil\\\\Textil_backend\\\\Textil_backend\\\\Textil_backend.csproj\" -c Debug --nologo -v q 2>&1)",
       "Bash(git -C c:/proyectos/abisoft/IATextil status --short)",
       "Bash(git check-ignore *)",
-      "Bash(npx ng *)"
+      "Bash(npx ng *)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(dotnet --list-runtimes)",
+      "PowerShell(Get-Service *)",
+      "PowerShell(winget install *)",
+      "PowerShell(& \"C:\\\\Program Files\\\\dotnet\\\\dotnet.exe\" --list-sdks)",
+      "Bash(break)",
+      "PowerShell(winget search *)",
+      "WebSearch",
+      "WebFetch(domain:docs.alliedvision.com)",
+      "PowerShell(Start-Process -FilePath \"C:\\\\Users\\\\usuario\\\\Downloads\\\\IATextil-intaladores\\\\VimbaX_Setup-2026-1-Win64.exe\"; Write-Output \"Instalador de Vimba X lanzado. Revisa la pantalla: acepta el UAC y sigue el asistente con opciones por defecto.\")",
+      "Bash(curl *)",
+      "Bash(mkdir -p /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad)",
+      "Bash(cp /tmp/snap2.png /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/snap_view.png)",
+      "Read(//c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/**)",
+      "Bash(exit 1)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git restore *)",
+      "Bash(rm -f run_IATextil_local.bat)",
+      "Bash(PGPASSWORD=yaz0 'C:/Program Files/PostgreSQL/17/bin/psql.exe' -h localhost -U postgres -d postgres -tAc 'select '\\\\''OK'\\\\'', current_user')",
+      "PowerShell(dotnet build *)",
+      "Bash(cp /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_20.img /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_stitch.jpg)",
+      "Bash(cp /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_0.img /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_single.jpg)"
     ]
   }
 }

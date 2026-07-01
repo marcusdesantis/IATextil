@@ -14,7 +14,8 @@ public interface IImageProcessingService
         uint width,
         uint height,
         IFrame.PixelFormatValue pixelFormat,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        bool asJpeg = false);
 
     Bitmap? CreateBitmap(byte[] bytes, uint width, uint height, IFrame.PixelFormatValue pixelFormat);
 

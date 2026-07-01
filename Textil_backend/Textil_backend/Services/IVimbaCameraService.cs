@@ -358,8 +358,9 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
 
     /// <summary>
     /// Derives the raw-frame geometry (width, height, pixel format) from the companion .png next to a
-    /// .bin. The saved PNG is rotated 90° from the raw frame, so the raw width/height are the PNG's
-    /// height/width. Falls back to the simulator's known 200x2800 RGB8 frame if the PNG can't be read.
+    /// .bin. These frames are stored WITHOUT rotation (PNG orientation = raw orientation), so the raw
+    /// width/height match the PNG's width/height directly. Falls back to a 2800x200 RGB8 frame if the
+    /// PNG can't be read.
     /// </summary>
     private (uint Width, uint Height, IFrame.PixelFormatValue Format) ResolveLocalGeometry(string binPath)
     {
@@ -383,24 +384,24 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
                     };
                     if (pngWidth > 0 && pngHeight > 0)
                     {
-                        // Undo the 90° rotation applied when the PNG was saved.
+                        // PNG is stored in raw orientation (no rotation) → raw dims = PNG dims.
                         _logger.LogInformation(
-                            "Local geometry from {Png}: PNG {PngW}x{PngH} → raw frame {RawW}x{RawH} {Format}",
-                            Path.GetFileName(pngPath), pngWidth, pngHeight, pngHeight, pngWidth, format);
-                        return (pngHeight, pngWidth, format);
+                            "Local geometry from {Png}: raw frame {RawW}x{RawH} {Format}",
+                            Path.GetFileName(pngPath), pngWidth, pngHeight, format);
+                        return (pngWidth, pngHeight, format);
                     }
                 }
             }
             else
             {
-                _logger.LogWarning("No companion PNG for {Bin}; using default 200x2800 RGB8 geometry.", Path.GetFileName(binPath));
+                _logger.LogWarning("No companion PNG for {Bin}; using default 2800x200 RGB8 geometry.", Path.GetFileName(binPath));
             }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Could not read geometry from {Png}; using default 200x2800 RGB8.", pngPath);
         }
-        return (200, 2800, IFrame.PixelFormatValue.RGB8);
+        return (2800, 200, IFrame.PixelFormatValue.RGB8);
     }
 
     public async Task StopRecordingAsync(string cameraId)
@@ -628,7 +629,10 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         var fullPath = Path.Combine(folder, binName);
 
         await File.WriteAllBytesAsync(fullPath, bytes, ct);
-        await _imageProcessor.TryWritePngAsync(Path.ChangeExtension(fullPath, ".png"), bytes, w, h, fmt, ct);
+        // Save the viewable image as JPEG: stitched fabric captures are large and photographic, so a
+        // lossless PNG can reach tens of MB and fail to load in the browser. The file keeps a .png name
+        // (the endpoint detects the real type from the magic bytes).
+        await _imageProcessor.TryWritePngAsync(Path.ChangeExtension(fullPath, ".png"), bytes, w, h, fmt, ct, asJpeg: true);
 
         var snapshot = new InspectionSnapshot
         {

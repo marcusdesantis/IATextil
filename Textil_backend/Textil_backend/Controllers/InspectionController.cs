@@ -265,15 +265,34 @@ public class InspectionController : ControllerBase
 
         var absolutePath = _storage.GetAbsolutePath(snapshot.FileRelativePath);
 
-        // The service saves both a .bin (raw) and a .png side-by-side.
-        // Prefer the PNG; fall back to the stored path if somehow only raw exists.
+        // The service saves both a .bin (raw) and a viewable image (.png name) side-by-side.
+        // Prefer the image; fall back to the stored path if somehow only raw exists.
         var pngPath = Path.ChangeExtension(absolutePath, ".png");
         var servePath = System.IO.File.Exists(pngPath) ? pngPath : absolutePath;
 
         if (!System.IO.File.Exists(servePath))
             return NotFound(new { Message = "Image file not found on disk." });
 
-        return PhysicalFile(servePath, "image/png");
+        // The viewable image may be encoded as JPEG (large stitched captures) or PNG, regardless of the
+        // .png file name — detect the real type from the magic bytes so the browser renders it.
+        return PhysicalFile(servePath, DetectImageContentType(servePath));
+    }
+
+    /// <summary>Detects an image's MIME type from its leading magic bytes (JPEG or PNG).</summary>
+    private static string DetectImageContentType(string path)
+    {
+        try
+        {
+            Span<byte> head = stackalloc byte[3];
+            using var fs = System.IO.File.OpenRead(path);
+            if (fs.Read(head) == head.Length)
+            {
+                if (head[0] == 0xFF && head[1] == 0xD8 && head[2] == 0xFF) return "image/jpeg";
+                if (head[0] == 0x89 && head[1] == 0x50 && head[2] == 0x4E) return "image/png";
+            }
+        }
+        catch { /* fall through to default */ }
+        return "image/png";
     }
 
     /// <summary>

@@ -35,7 +35,8 @@ public class ImageProcessingService : IImageProcessingService
         uint width,
         uint height,
         IFrame.PixelFormatValue pixelFormat,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool asJpeg = false)
     {
         try
         {
@@ -48,7 +49,8 @@ public class ImageProcessingService : IImageProcessingService
                 // travel). Rotate 90° so the long axis (travel) is horizontal — easier to view and the
                 // zone bands become wider. The crop divides the rotated image's height (= fabric width).
                 // To flip the rotation direction, use Rotate270FlipNone instead.
-                // NOTE: rotation disabled on request — image kept in its original portrait orientation.
+                // NOTE: rotation disabled on request — the frames are already stored in landscape
+                // orientation, so rotating would turn them sideways.
                 // bitmap.RotateFlip(RotateFlipType.Rotate90FlipNone);
 
                 // When many full frames are stitched (e.g. tall simulator frames × a large "per lato"),
@@ -63,19 +65,39 @@ public class ImageProcessingService : IImageProcessingService
                     var newWidth = Math.Max(1, (int)(bitmap.Width * scale));
                     var newHeight = Math.Max(1, (int)(bitmap.Height * scale));
                     using var scaled = new Bitmap(bitmap, new Size(newWidth, newHeight));
-                    scaled.Save(pngFullPath, ImageFormat.Png);
+                    SaveBitmap(scaled, pngFullPath, asJpeg);
                     _logger.LogWarning(
-                        "Stitched image {W}x{H} exceeded the {Max}px PNG limit; downscaled to {NW}x{NH}.",
+                        "Stitched image {W}x{H} exceeded the {Max}px limit; downscaled to {NW}x{NH}.",
                         bitmap.Width, bitmap.Height, MaxSide, newWidth, newHeight);
                     return;
                 }
 
-                bitmap.Save(pngFullPath, ImageFormat.Png);
+                SaveBitmap(bitmap, pngFullPath, asJpeg);
             }, cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to generate PNG for snapshot. PixelFormat: {PixelFormat}", pixelFormat);
+        }
+    }
+
+    // JPEG encoder, resolved once. Fabric is photographic and stitched defect images can be huge;
+    // PNG (lossless) blows them up to tens of MB and the browser <img> fails to load them, while a
+    // JPEG of the same image is a few MB. PNG is kept for single frames / diagnostics.
+    private static readonly ImageCodecInfo? _jpegCodec =
+        ImageCodecInfo.GetImageEncoders().FirstOrDefault(c => c.FormatID == ImageFormat.Jpeg.Guid);
+
+    private static void SaveBitmap(Bitmap bitmap, string path, bool asJpeg)
+    {
+        if (asJpeg && _jpegCodec != null)
+        {
+            using var ep = new EncoderParameters(1);
+            ep.Param[0] = new EncoderParameter(Encoder.Quality, 88L);
+            bitmap.Save(path, _jpegCodec, ep);
+        }
+        else
+        {
+            bitmap.Save(path, ImageFormat.Png);
         }
     }
 
