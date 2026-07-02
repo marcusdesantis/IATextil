@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using Microsoft.Extensions.Options;
 using Textil_backend.Interfaces;
 using Textil_backend.Models;
@@ -277,11 +278,17 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
             if (_sessions.ContainsKey(LocalCameraId))
                 throw new InvalidOperationException("A local session is already active. Stop it before loading another folder.");
 
-            // Load every .bin frame, ordered by the trailing numeric index in the file name
-            // (frame_YYYYMMDD_HHMMSS_fff_N.bin). This mirrors the acquisition order.
+            // Load every .bin frame in true acquisition order. The file name is
+            // frame_YYYYMMDD_HHMMSS_fff_N.bin, where the embedded timestamp is monotonic across the
+            // WHOLE folder but the trailing counter N RESETS to 1 on every recording run. An encoder
+            // that pulses in bursts drops several runs into the same folder, so a folder can hold
+            // multiple sessions with duplicate N values. Sorting by N alone would interleave the
+            // sessions (all the #1s, then all the #2s…) and break fabric continuity. Order by the
+            // timestamp first (concatenates whole runs in real time order), then by N within a run.
             var binFiles = Directory.EnumerateFiles(folderPath, "*.bin")
-                .Select(p => new { Path = p, Seq = ParseFrameSequence(p) })
-                .OrderBy(x => x.Seq)
+                .Select(p => new { Path = p, Ts = ParseFrameTimestamp(p), Seq = ParseFrameSequence(p) })
+                .OrderBy(x => x.Ts)
+                .ThenBy(x => x.Seq)
                 .ToList();
             if (binFiles.Count == 0)
                 throw new InvalidOperationException("No .bin frames were found in the folder.");
@@ -354,6 +361,28 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         if (underscore >= 0 && long.TryParse(name.AsSpan(underscore + 1), out var seq))
             return seq;
         return 0;
+    }
+
+    /// <summary>
+    /// Extracts the acquisition timestamp embedded in a "frame_YYYYMMDD_HHMMSS_fff_N.bin" file name
+    /// (the "YYYYMMDD_HHMMSS_fff" chunk between the first and last underscore). Used as the primary
+    /// sort key so multiple recording runs in one folder concatenate in real time order instead of
+    /// interleaving on the per-run counter N. Returns DateTime.MinValue when absent/unparseable, so
+    /// ordering degrades gracefully to ParseFrameSequence alone.
+    /// </summary>
+    private static DateTime ParseFrameTimestamp(string path)
+    {
+        var name = Path.GetFileNameWithoutExtension(path);
+        var first = name.IndexOf('_');
+        var last = name.LastIndexOf('_');
+        if (first >= 0 && last > first)
+        {
+            var stamp = name.Substring(first + 1, last - first - 1);
+            if (DateTime.TryParseExact(stamp, "yyyyMMdd_HHmmss_fff",
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out var ts))
+                return ts;
+        }
+        return DateTime.MinValue;
     }
 
     /// <summary>
