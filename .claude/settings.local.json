@@ -29,7 +29,18 @@
       "Bash(PGPASSWORD=yaz0 'C:/Program Files/PostgreSQL/17/bin/psql.exe' -h localhost -U postgres -d postgres -tAc 'select '\\\\''OK'\\\\'', current_user')",
       "PowerShell(dotnet build *)",
       "Bash(cp /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_20.img /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_stitch.jpg)",
-      "Bash(cp /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_0.img /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_single.jpg)"
+      "Bash(cp /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_0.img /c/Users/usuario/AppData/Local/Temp/claude/C--Users-usuario-Documents-Abisoft-ia-textil-IATextil/7d9a18c0-8e2f-4bae-b0ed-9bf14a7c8b76/scratchpad/j_single.jpg)",
+      "Bash(echo \"5024: $\\(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5024/api/inspection/ruler-config 2>/dev/null || echo DOWN\\)\")",
+      "Bash(echo \"4200: $\\(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4200 2>/dev/null || echo DOWN\\)\")",
+      "Bash(command -v python3)",
+      "Bash(command -v python)",
+      "Bash(command -v py)",
+      "Bash(echo \"python: $\\(command -v python3 || command -v python || command -v py || echo NO\\)\")",
+      "Bash(command -v magick)",
+      "Bash(timeout 10 /c/Users/usuario/AppData/Local/Microsoft/WindowsApps/python3 -c \"import sys,PIL; print\\('python OK + PIL', sys.version.split\\(\\)[0]\\)\")",
+      "Bash(echo \"exit=$?\")",
+      "Bash(echo \"frontend 4200: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:4200 || echo DOWN\\)\")",
+      "Bash(xargs -n1 basename)"
     ]
   }
 }
