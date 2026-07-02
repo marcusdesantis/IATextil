@@ -73,4 +73,10 @@ export interface InspectionSnapshot {
   bufferFrameCount?: number | null;
   firstFrameId?: number | null;
   lastFrameId?: number | null;
+
+  // Recording run ("corrida") the stitched frames came from. Meaningful for LOCAL sessions whose
+  // buffer holds several concatenated runs; a physical camera session is always a single run.
+  corrida?: number | null;
+  corridaCount?: number | null;
+  corridaSpansMultiple?: boolean | null;
 }

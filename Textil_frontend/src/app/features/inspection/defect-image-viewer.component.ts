@@ -499,6 +499,12 @@ export class DefectImageViewerComponent implements OnInit, OnDestroy {
     if (s.firstFrameId != null && s.lastFrameId != null) {
       parts.push(`frame #${s.firstFrameId} → #${s.lastFrameId}`);
     }
+    // Only show the run ("corrida") when the buffer holds more than one — a physical camera
+    // session is always a single run, so the tag would just be noise there.
+    if (s.corrida != null && (s.corridaCount ?? 1) > 1) {
+      const span = s.corridaSpansMultiple ? ' ⚠ frame di corride diverse' : '';
+      parts.push(`corrida ${s.corrida}/${s.corridaCount}${span}`);
+    }
     if (s.bufferFrameCount != null) parts.push(`buffer ${s.bufferFrameCount}`);
     if (s.stitchedWidth && s.stitchedHeight) parts.push(`${s.stitchedWidth}×${s.stitchedHeight} px`);
     return parts.join(' · ');

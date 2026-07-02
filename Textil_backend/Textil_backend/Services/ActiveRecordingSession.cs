@@ -10,6 +10,14 @@ public sealed class FrameEntry
     public uint Height { get; init; }
     public IFrame.PixelFormatValue PixelFormat { get; init; }
     public DateTime TimestampUtc { get; init; }
+
+    /// <summary>
+    /// 1-based recording run ("corrida") this frame belongs to. A physical camera session is a
+    /// single continuous run (always 1). A LOCAL folder can hold several runs concatenated — the
+    /// per-run frame counter resets to 1 on each new recording, so the loader bumps this every time
+    /// the counter restarts. Used to tell the operator which run a stitched defect image came from.
+    /// </summary>
+    public int RunIndex { get; init; } = 1;
 }
 
 public class ActiveRecordingSession : IDisposable

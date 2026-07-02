@@ -325,9 +325,18 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
                 RingBufferSize = Math.Max(binFiles.Count, settings.RingBufferSize)
             };
 
+            // Tag each frame with its recording run ("corrida"). Frames are already in real acquisition
+            // order (timestamp, then per-run counter). The per-run counter resets to 1 on every new
+            // recording, so a drop in Seq marks the boundary between runs. A time-gap within one run
+            // (fabric paused, counter keeps climbing) is NOT a new run — only a counter reset is.
+            var runIndex = 1;
+            var prevSeq = long.MinValue;
             foreach (var f in binFiles)
             {
                 ct.ThrowIfCancellationRequested();
+                if (f.Seq < prevSeq) runIndex++;
+                prevSeq = f.Seq;
+
                 var bytes = await File.ReadAllBytesAsync(f.Path, ct);
                 session.AddFrame(new FrameEntry
                 {
@@ -336,7 +345,8 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
                     Width = width,
                     Height = height,
                     PixelFormat = pixelFormat,
-                    TimestampUtc = DateTime.UtcNow
+                    TimestampUtc = DateTime.UtcNow,
+                    RunIndex = runIndex
                 });
             }
 
@@ -628,6 +638,12 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         snapshot.BufferFrameCount = buffer.Length;
         snapshot.FirstFrameId = window[0].FrameId;
         snapshot.LastFrameId = window[count - 1].FrameId;
+
+        // Which recording run ("corrida") this image came from. Runs increase with buffer index, so
+        // the newest frame carries the highest run number = total run count.
+        snapshot.Corrida = refFrame.RunIndex;
+        snapshot.CorridaCount = buffer[buffer.Length - 1].RunIndex;
+        snapshot.CorridaSpansMultiple = window[0].RunIndex != window[count - 1].RunIndex;
 
         return snapshot;
     }

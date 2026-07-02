@@ -29,5 +29,11 @@ public class InspectionSnapshot
     [NotMapped] public long? FirstFrameId { get; set; }
     [NotMapped] public long? LastFrameId { get; set; }
 
+    // Recording run ("corrida") the stitched frames came from. Meaningful for LOCAL sessions whose
+    // buffer holds several concatenated runs; a physical camera session is always a single run.
+    [NotMapped] public int? Corrida { get; set; }             // run of the center/reference frame
+    [NotMapped] public int? CorridaCount { get; set; }        // total runs in the buffer
+    [NotMapped] public bool? CorridaSpansMultiple { get; set; } // window crosses a run boundary
+
     public RecordingSessionRecord? RecordingSession { get; set; }
 }
