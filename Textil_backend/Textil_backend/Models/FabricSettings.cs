@@ -78,7 +78,28 @@ public class FabricSettings
     /// </summary>
     public bool SaveAllFrames { get; set; } = false;
 
+    // ---- Local-frames demo calibration (Option A) ----
+    // For LOCAL sessions (frames replayed from a folder), the fabric moved at an irregular manual
+    // speed with time-triggered capture, so the distance/CmPerFrame formula can't map ruler positions
+    // to frames reliably. Instead we map ruler position → buffer frame index DIRECTLY with a linear fit
+    // calibrated from the known green sticker positions:
+    //     centerIndex = LocalRulerIndexAtPos0 + LocalRulerIndexPerPos × position
+    // These are tunable in appsettings.Development.json so the demo can be adjusted per recording.
+
+    /// <summary>Enable the direct ruler→frame mapping for LOCAL sessions (demo calibration).</summary>
+    public bool LocalRulerCalibrationEnabled { get; set; } = false;
+
+    /// <summary>Buffer frame index the ruler maps to at position 0 (intercept of the linear fit).</summary>
+    public double LocalRulerIndexAtPos0 { get; set; } = 19.1;
+
+    /// <summary>Buffer frames per ruler position (slope of the linear fit).</summary>
+    public double LocalRulerIndexPerPos { get; set; } = 0.474;
+
     // ---- Derived helpers (not stored in appsettings) ----
+
+    /// <summary>Direct ruler position → buffer center index for LOCAL demo calibration.</summary>
+    public int GetLocalCenterIndex(int position) =>
+        (int)Math.Round(LocalRulerIndexAtPos0 + LocalRulerIndexPerPos * position);
 
     /// <summary>
     /// Returns the center distance (cm) from the camera for the given 1-based ruler position.

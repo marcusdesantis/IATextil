@@ -506,14 +506,34 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
                 settings.CmPerFrame);
         }
 
-        // Priority: explicit offsetFrames > ruler-derived > default
-        var offset = offsetFrames ?? rulerDerivedOffset ?? settings.DefaultOffsetFrames;
+        int centerIdx;
 
-        // Center index in the buffer: buffer_end - offset → which frame to show.
-        var centerIdx = buffer.Length - 1 - offset;
-        centerIdx = Math.Clamp(centerIdx, 0, buffer.Length - 1);
+        // LOCAL DEMO CALIBRATION (Option A): for a local-files session, ignore the distance/CmPerFrame
+        // formula (unreliable here: irregular manual speed + time-triggered capture) and map the ruler
+        // position DIRECTLY to a buffer frame index via the linear fit calibrated from the green stickers.
+        if (session.IsLocal && settings.LocalRulerCalibrationEnabled && rulerPosition.HasValue)
+        {
+            centerIdx = settings.GetLocalCenterIndex(rulerPosition.Value);
+            centerIdx = Math.Clamp(centerIdx, 0, buffer.Length - 1);
+
+            _logger.LogInformation(
+                "LOCAL ruler calibration: position {Position} → center index {Center} " +
+                "(fit: {A} + {B}×pos, buffer={Total})",
+                rulerPosition.Value, centerIdx,
+                settings.LocalRulerIndexAtPos0, settings.LocalRulerIndexPerPos, buffer.Length);
+        }
+        else
+        {
+            // Priority: explicit offsetFrames > ruler-derived > default
+            var offset = offsetFrames ?? rulerDerivedOffset ?? settings.DefaultOffsetFrames;
+
+            // Center index in the buffer: buffer_end - offset → which frame to show.
+            centerIdx = buffer.Length - 1 - offset;
+            centerIdx = Math.Clamp(centerIdx, 0, buffer.Length - 1);
+        }
 
         var refFrame = buffer[centerIdx];
+        var effectiveOffset = buffer.Length - 1 - centerIdx; // frames back from newest, for logging/record
 
         // Compose a window of frames CENTERED on the reference frame and stack them into one
         // continuous fabric image. Each camera frame is a thin strip along the travel direction
@@ -551,7 +571,7 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
         _logger.LogInformation(
             "Defect capture: buffer={Total}, offset={Offset}, center={Center}, perSide(req)={PerSide}, " +
             "back={Back}, fwd={Fwd}, total={Count} frames, stitched={Width}x{Height}",
-            buffer.Length, offset, centerIdx, framesPerSide, framesBack, framesFwd, count,
+            buffer.Length, effectiveOffset, centerIdx, framesPerSide, framesBack, framesFwd, count,
             refFrame.Width, outHeight);
 
         // If either side is clamped below what was requested, a larger "Per lato" can't add frames
@@ -568,7 +588,7 @@ public class VimbaCameraService : IVimbaCameraService, IDisposable
             refFrame.Width, outHeight,
             refFrame.PixelFormat, session.RecordingId,
             machineState ?? "DefectCapture", notes,
-            null, rulerPosition, rulerDerivedOffset ?? offset, ct);
+            null, rulerPosition, rulerDerivedOffset ?? effectiveOffset, ct);
 
         // Attach composition info so the viewer can show what was stitched (transient, not persisted).
         snapshot.StitchedFrameCount = count;

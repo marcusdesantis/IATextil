@@ -122,9 +122,10 @@ export class InspectionComponent implements OnInit, OnDestroy {
 
   /** Syncs each camera card with its active session, and shows a virtual card for a live local session. */
   private applySessions(sessions: ActiveSession[]): void {
-    // Reconcile: a running local session with no card yet (e.g. after a page reload) gets a virtual card.
+    // Reconcile: a running local session with no card yet (e.g. after a page reload) gets a virtual
+    // card — but only while local mode is ON, so turning the switch off hides it.
     const localSession = sessions.find((s) => s.cameraId === this.LOCAL_ID);
-    if (localSession && !this.cameras.some((c) => c.camera.id === this.LOCAL_ID)) {
+    if (localSession && this.localMode && !this.cameras.some((c) => c.camera.id === this.LOCAL_ID)) {
       this.ensureLocalCard(localSession.sessionName);
     }
 
@@ -139,24 +140,54 @@ export class InspectionComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Loads all .bin frames from the folder into a virtual "local" session and shows it as a camera card. */
+  /** Loads all .bin frames from the folder into a virtual "local" session and shows it as a camera card.
+   *  If a local session is already active, it is stopped first so a different folder can be loaded. */
   startLocal(): void {
     const path = this.localPath.trim();
     if (!path || this.localLoading) return;
 
     this.localLoading = true;
-    this.inspectionService.startLocalRecording(path).subscribe({
-      next: (res) => {
-        this.localLoading = false;
-        this.ensureLocalCard(res.folder);
-        this.refreshSessions();
-        this.notify(`Cartella caricata: ${res.totalFrames} fotogrammi`, 'success');
-      },
-      error: (err) => {
-        this.localLoading = false;
-        this.notify(err?.error?.message ?? 'Impossibile caricare la cartella', 'error');
-      },
+    const load = () => {
+      this.inspectionService.startLocalRecording(path).subscribe({
+        next: (res) => {
+          this.localLoading = false;
+          this.ensureLocalCard(res.folder);
+          this.refreshSessions();
+          this.notify(`Cartella caricata: ${res.totalFrames} fotogrammi`, 'success');
+        },
+        error: (err) => {
+          this.localLoading = false;
+          this.notify(err?.error?.message ?? 'Impossibile caricare la cartella', 'error');
+        },
+      });
+    };
+
+    // A local session can only run one folder at a time — stop the current one before loading another.
+    if (this.localActive) {
+      this.inspectionService.stopRecording(this.LOCAL_ID).subscribe({
+        next: () => { this.removeLocalCard(); load(); },
+        error: () => { this.removeLocalCard(); load(); },
+      });
+    } else {
+      load();
+    }
+  }
+
+  /** Toggling the switch OFF stops any active local session and returns to the camera.
+   *  Toggling ON re-shows a session that may already be running on the backend. */
+  onLocalModeChange(): void {
+    if (this.localMode) { this.refreshSessions(); return; }
+    if (!this.localActive) return;
+    this.localLoading = true;
+    this.inspectionService.stopRecording(this.LOCAL_ID).subscribe({
+      next: () => { this.localLoading = false; this.removeLocalCard(); this.notify('Modalità frame locali disattivata', 'success'); },
+      error: () => { this.localLoading = false; this.removeLocalCard(); },
     });
+  }
+
+  /** Removes the virtual local camera card (if present). */
+  private removeLocalCard(): void {
+    this.cameras = this.cameras.filter((c) => c.camera.id !== this.LOCAL_ID);
   }
 
   /** Returns true while a local session card is present (folder already loaded). */
